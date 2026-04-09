@@ -1,0 +1,44 @@
+plugins {
+    id 'java'
+}
+
+group = 'ai.jacc'
+version = '1.0.0'
+
+sourceCompatibility = '1.8'
+targetCompatibility = '1.8'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.ow2.asm:asm:9.7'
+    implementation 'org.ow2.asm:asm-commons:9.7'
+    implementation 'org.ow2.asm:asm-util:9.7'
+
+    testImplementation 'junit:junit:4.13.2'
+}
+
+jar {
+    archiveBaseName = 'SimpleJavaTemplates'
+    archiveVersion = ''
+
+    manifest {
+        attributes(
+            'Premain-Class': 'ai.jacc.simplejavatemplates.agent.SimpleJavaTemplatesAgent',
+            'Can-Retransform-Classes': 'true',
+            'Can-Redefine-Classes': 'true'
+        )
+    }
+
+    // Bundle ASM classes into the jar
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+test {
+    useJUnit()
+}
