@@ -37,10 +37,20 @@ public final class Template {
                             "Malformed placeholder: unclosed '${' at index " + i +
                             " in template: " + template);
                     }
-                    String name = template.substring(i + 2, closeBrace);
+                    String content = template.substring(i + 2, closeBrace);
+                    int colonIdx = content.indexOf(':');
+                    String name;
+                    String formatSpec;
+                    if (colonIdx >= 0) {
+                        name = content.substring(0, colonIdx);
+                        formatSpec = content.substring(colonIdx + 1);
+                    } else {
+                        name = content;
+                        formatSpec = null;
+                    }
                     if (name.isEmpty() || !isValidJavaIdentifier(name)) {
                         throw new TemplateException(
-                            "Malformed placeholder: '${" + name +
+                            "Malformed placeholder: '${" + content +
                             "}' is not a valid Java identifier in template: " + template);
                     }
                     if (!localVarValues.containsKey(name)) {
@@ -62,7 +72,17 @@ public final class Template {
                             ". The variable may not exist at this call site, or it may have " +
                             "been optimized away before the agent saw the class.");
                     }
-                    result.append(String.valueOf(localVarValues.get(name)));
+                    Object value = localVarValues.get(name);
+                    if (formatSpec != null) {
+                        try {
+                            result.append(String.format("%" + formatSpec, value));
+                        } catch (java.util.IllegalFormatException e) {
+                            throw new TemplateException(
+                                "Format error for '${" + content + "}': " + e.getMessage(), e);
+                        }
+                    } else {
+                        result.append(String.valueOf(value));
+                    }
                     i = closeBrace + 1;
                 } else {
                     // $ followed by something other than { or $ — pass through

@@ -45,6 +45,9 @@ public class SmokeTest {
         // ===== Dynamic (non-literal) templates =====
         testDynamicTemplates();
 
+        // ===== Format specifiers =====
+        testFormatSpecifiers();
+
         // ===== Summary =====
         System.out.println("\n" + passed + " passed, " + failed + " failed");
         if (failed > 0) {
@@ -582,6 +585,200 @@ public class SmokeTest {
 
     static String testTemplateFromMethod(int n) {
         return f(getTemplate());
+    }
+
+    // ========================================================================
+    // Format specifiers
+    // ========================================================================
+
+    static void testFormatSpecifiers() {
+        section("Format specifiers");
+
+        // Floating-point: .2f
+        try {
+            String r = testFloatFormat(3.14159);
+            check("double .2f", "pi=3.14", r);
+        } catch (Throwable e) { fail("double .2f", e); }
+
+        // Floating-point: .0f (no decimals)
+        try {
+            String r = testFloatNoDecimals(99.7);
+            check("double .0f", "val=100", r);
+        } catch (Throwable e) { fail("double .0f", e); }
+
+        // Floating-point: .5f (many decimals)
+        try {
+            String r = testFloatManyDecimals(1.0 / 3.0);
+            check("double .5f", "val=0.33333", r);
+        } catch (Throwable e) { fail("double .5f", e); }
+
+        // Integer: zero-padded
+        try {
+            String r = testIntZeroPad(42);
+            check("int 05d", "code=00042", r);
+        } catch (Throwable e) { fail("int 05d", e); }
+
+        // Integer: with sign
+        try {
+            String r = testIntWithSign(-7);
+            check("int +d negative", "val=-7", r);
+        } catch (Throwable e) { fail("int +d negative", e); }
+
+        try {
+            String r = testIntWithSign(7);
+            check("int +d positive", "val=+7", r);
+        } catch (Throwable e) { fail("int +d positive", e); }
+
+        // String: uppercase
+        try {
+            String r = testStringUpperCase("hello");
+            check("string S (upper)", "HI=HELLO", r);
+        } catch (Throwable e) { fail("string S (upper)", e); }
+
+        // String: width (right-padded)
+        try {
+            String r = testStringWidth("hi");
+            check("string -10s", "[hi        ]", r);
+        } catch (Throwable e) { fail("string -10s", e); }
+
+        // Hex formatting
+        try {
+            String r = testHexFormat(255);
+            check("int x (hex)", "hex=ff", r);
+        } catch (Throwable e) { fail("int x (hex)", e); }
+
+        try {
+            String r = testHexUpperFormat(255);
+            check("int X (HEX)", "hex=FF", r);
+        } catch (Throwable e) { fail("int X (HEX)", e); }
+
+        // Octal
+        try {
+            String r = testOctalFormat(8);
+            check("int o (octal)", "oct=10", r);
+        } catch (Throwable e) { fail("int o (octal)", e); }
+
+        // Scientific notation
+        try {
+            String r = testScientific(123456.789);
+            check("double e (scientific)", true, r.startsWith("sci=1.2"));
+        } catch (Throwable e) { fail("double e (scientific)", e); }
+
+        // Mix of formatted and unformatted placeholders in one template
+        try {
+            String r = testMixedFormatAndPlain("Alice", 3, 29.956);
+            check("mixed format+plain", "User Alice has 3 items worth 29.96", r);
+        } catch (Throwable e) { fail("mixed format+plain", e); }
+
+        // Plain placeholder (no colon) still works as before
+        try {
+            String r = testPlainStillWorks(42);
+            check("plain (no colon)", "val=42", r);
+        } catch (Throwable e) { fail("plain (no colon)", e); }
+
+        // Format spec with width + precision on float
+        try {
+            String r = testWidthAndPrecision(3.14);
+            check("10.2f (width+prec)", "val=      3.14", r);
+        } catch (Throwable e) { fail("10.2f (width+prec)", e); }
+
+        // Bad format spec throws TemplateException
+        try {
+            testBadFormatSpec(42);
+            fail("bad format spec", new AssertionError("expected TemplateException"));
+        } catch (TemplateException e) {
+            check("bad format error", true, e.getMessage().contains("Format error"));
+        } catch (Throwable e) { fail("bad format spec", e); }
+
+        // Comma grouping separator
+        try {
+            String r = testCommaGrouping(1234567);
+            check("int ,d (commas)", "pop=1,234,567", r);
+        } catch (Throwable e) { fail("int ,d (commas)", e); }
+
+        // Multiple formatted placeholders
+        try {
+            String r = testMultipleFormatted(1, 2, 3);
+            check("3 formatted placeholders", "001-002-003", r);
+        } catch (Throwable e) { fail("3 formatted placeholders", e); }
+
+        // Boolean formatting
+        try {
+            String r = testBooleanFormat(true);
+            check("boolean b", "flag=true", r);
+        } catch (Throwable e) { fail("boolean b", e); }
+    }
+
+    static String testFloatFormat(double pi) {
+        return f("pi=${pi:.2f}");
+    }
+
+    static String testFloatNoDecimals(double val) {
+        return f("val=${val:.0f}");
+    }
+
+    static String testFloatManyDecimals(double val) {
+        return f("val=${val:.5f}");
+    }
+
+    static String testIntZeroPad(int code) {
+        return f("code=${code:05d}");
+    }
+
+    static String testIntWithSign(int val) {
+        return f("val=${val:+d}");
+    }
+
+    static String testStringUpperCase(String hi) {
+        return f("HI=${hi:S}");
+    }
+
+    static String testStringWidth(String s) {
+        return f("[${s:-10s}]");
+    }
+
+    static String testHexFormat(int val) {
+        return f("hex=${val:x}");
+    }
+
+    static String testHexUpperFormat(int val) {
+        return f("hex=${val:X}");
+    }
+
+    static String testOctalFormat(int val) {
+        return f("oct=${val:o}");
+    }
+
+    static String testScientific(double val) {
+        return f("sci=${val:e}");
+    }
+
+    static String testMixedFormatAndPlain(String name, int count, double total) {
+        return f("User ${name} has ${count} items worth ${total:.2f}");
+    }
+
+    static String testPlainStillWorks(int val) {
+        return f("val=${val}");
+    }
+
+    static String testWidthAndPrecision(double val) {
+        return f("val=${val:10.2f}");
+    }
+
+    static String testBadFormatSpec(int val) {
+        return f("val=${val:.2f}"); // int with float format → IllegalFormatConversionException
+    }
+
+    static String testCommaGrouping(int pop) {
+        return f("pop=${pop:,d}");
+    }
+
+    static String testMultipleFormatted(int a, int b, int c) {
+        return f("${a:03d}-${b:03d}-${c:03d}");
+    }
+
+    static String testBooleanFormat(boolean flag) {
+        return f("flag=${flag:b}");
     }
 
     // ========================================================================
