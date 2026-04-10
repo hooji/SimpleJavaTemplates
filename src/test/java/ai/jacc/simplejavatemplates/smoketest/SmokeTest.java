@@ -1,6 +1,6 @@
 package ai.jacc.simplejavatemplates.smoketest;
 
-import static ai.jacc.simplejavatemplates.Template.t;
+import static ai.jacc.simplejavatemplates.Template.f;
 
 import ai.jacc.simplejavatemplates.TemplateException;
 
@@ -73,14 +73,14 @@ public class SmokeTest {
         // No placeholders at all
         try {
             int dummy = 1;
-            String r = t("Hello world");
+            String r = f("Hello world");
             check("no placeholders", "Hello world", r);
         } catch (Throwable e) { fail("no placeholders", e); }
 
         // Empty template
         try {
             int dummy = 1;
-            String r = t("");
+            String r = f("");
             check("empty template", "", r);
         } catch (Throwable e) { fail("empty template", e); }
 
@@ -98,22 +98,22 @@ public class SmokeTest {
     }
 
     static String testBasicHelper(int orderId, String customerName) {
-        return t("Order ${orderId} for ${customerName}");
+        return f("Order ${orderId} for ${customerName}");
     }
 
     static String testComputedLocals() {
         int x = 10;
         int y = 20;
         int sum = x + y;
-        return t("x=${x}, y=${y}, sum=${sum}");
+        return f("x=${x}, y=${y}, sum=${sum}");
     }
 
     static String testStartEnd(String first, String last) {
-        return t("${first}middle${last}");
+        return f("${first}middle${last}");
     }
 
     static String testRepeatedVar(String word) {
-        return t("${word}-${word}-${word}");
+        return f("${word}-${word}-${word}");
     }
 
     // ========================================================================
@@ -151,7 +151,7 @@ public class SmokeTest {
             String expected = expectedBuilder.toString();
 
             try {
-                String result = t(template);
+                String result = f(template);
                 check(n + " dollar signs + {val}", expected, result);
             } catch (TemplateException te) {
                 // With 0 dollar signs, template is "{val}" — no placeholder, just literal text
@@ -169,33 +169,33 @@ public class SmokeTest {
         // Test $$ in various positions
         try {
             int x = 1;
-            String r = t("a$$b");
+            String r = f("a$$b");
             check("$$ in middle", "a$b", r);
         } catch (Throwable e) { fail("$$ in middle", e); }
 
         try {
             int x = 1;
-            String r = t("$$");
+            String r = f("$$");
             check("just $$", "$", r);
         } catch (Throwable e) { fail("just $$", e); }
 
         try {
             int x = 1;
-            String r = t("$$$$");
+            String r = f("$$$$");
             check("$$$$", "$$", r);
         } catch (Throwable e) { fail("$$$$", e); }
 
         // Lone $ at end of string
         try {
             int x = 1;
-            String r = t("price$");
+            String r = f("price$");
             check("lone $ at end", "price$", r);
         } catch (Throwable e) { fail("lone $ at end", e); }
 
         // $ followed by non-{ non-$ character
         try {
             int x = 1;
-            String r = t("$x is not a placeholder");
+            String r = f("$x is not a placeholder");
             check("$ + non-brace", "$x is not a placeholder", r);
         } catch (Throwable e) { fail("$ + non-brace", e); }
     }
@@ -259,17 +259,17 @@ public class SmokeTest {
         } catch (Throwable e) { fail("null reference", e); }
     }
 
-    static String testByte(byte b) { return t("${b}"); }
-    static String testShort(short s) { return t("${s}"); }
-    static String testInt(int i) { return t("${i}"); }
-    static String testLong(long l) { return t("${l}"); }
-    static String testFloat(float f) { return t("${f}"); }
-    static String testDouble(double d) { return t("${d}"); }
-    static String testBoolean(boolean b) { return t("${b}"); }
-    static String testChar(char c) { return t("${c}"); }
+    static String testByte(byte b) { return f("${b}"); }
+    static String testShort(short s) { return f("${s}"); }
+    static String testInt(int i) { return f("${i}"); }
+    static String testLong(long l) { return f("${l}"); }
+    static String testFloat(float f) { return f("${f}"); }
+    static String testDouble(double d) { return f("${d}"); }
+    static String testBoolean(boolean b) { return f("${b}"); }
+    static String testChar(char c) { return f("${c}"); }
     static String testNullRef() {
         String s = null;
-        return t("${s}");
+        return f("${s}");
     }
 
     // ========================================================================
@@ -299,13 +299,13 @@ public class SmokeTest {
             int inner = 100;
             String unused = String.valueOf(inner); // use it to prevent optimization
         }
-        return t("outer=${outer}");
+        return f("outer=${outer}");
     }
 
     static String testMultipleScopes() {
         int a = 1;
         int b = 2;
-        return t("a=${a}, b=${b}");
+        return f("a=${a}, b=${b}");
     }
 
     // ========================================================================
@@ -333,12 +333,12 @@ public class SmokeTest {
     }
 
     String testThisInInstance() {
-        return t("obj=${this}");
+        return f("obj=${this}");
     }
 
     static String testStaticNoThis() {
         int x = 1;
-        return t("${this}");
+        return f("${this}");
     }
 
     // ========================================================================
@@ -361,18 +361,18 @@ public class SmokeTest {
     }
 
     static String testTwoCallSites(int count, String name) {
-        String a = t("Hello ${name}");
-        String b = t("Count: ${count}");
+        String a = f("Hello ${name}");
+        String b = f("Count: ${count}");
         return a + "|" + b;
     }
 
     static String testThreeCallSites() {
         int a = 1;
-        String r1 = t("a=${a}");
+        String r1 = f("a=${a}");
         int b = 2;
-        String r2 = t("a=${a},b=${b}");
+        String r2 = f("a=${a},b=${b}");
         int c = 3;
-        String r3 = t("a=${a},b=${b},c=${c}");
+        String r3 = f("a=${a},b=${b},c=${c}");
         return r1 + "|" + r2 + "|" + r3;
     }
 
@@ -386,7 +386,7 @@ public class SmokeTest {
         // Placeholder with single-char name
         try {
             int x = 9;
-            String r = t("${x}");
+            String r = f("${x}");
             check("single-char name", "9", r);
         } catch (Throwable e) { fail("single-char name", e); }
 
@@ -411,7 +411,7 @@ public class SmokeTest {
         // Template with curly braces but no dollar sign
         try {
             int x = 1;
-            String r = t("json: {\"key\": \"value\"}");
+            String r = f("json: {\"key\": \"value\"}");
             check("json-like braces", "json: {\"key\": \"value\"}", r);
         } catch (Throwable e) { fail("json-like braces", e); }
 
@@ -430,11 +430,11 @@ public class SmokeTest {
 
     static String testUnderscoreName() {
         int _myVar = 42;
-        return t("${_myVar}");
+        return f("${_myVar}");
     }
 
     static String testAdjacentPlaceholders(int a, int b) {
-        return t("${a}${b}");
+        return f("${a}${b}");
     }
 
     static String testLongTemplate(int val) {
@@ -442,15 +442,15 @@ public class SmokeTest {
         for (int i = 0; i < 100; i++) {
             sb.append("segment").append(i).append("=${val} ");
         }
-        return t(sb.toString());
+        return f(sb.toString());
     }
 
     static String testOnlyPlaceholder(String msg) {
-        return t("${msg}");
+        return f("${msg}");
     }
 
     static String testUnicode(String accent) {
-        return t("caf${accent}!");
+        return f("caf${accent}!");
     }
 
     // ========================================================================
@@ -463,7 +463,7 @@ public class SmokeTest {
         // Unknown variable name
         try {
             int x = 1;
-            t("${nonexistent}");
+            f("${nonexistent}");
             fail("unknown var", new AssertionError("expected TemplateException"));
         } catch (TemplateException e) {
             check("unknown var message", true,
@@ -474,7 +474,7 @@ public class SmokeTest {
         try {
             int alpha = 1;
             int beta = 2;
-            t("${gamma}");
+            f("${gamma}");
             fail("available names", new AssertionError("expected TemplateException"));
         } catch (TemplateException e) {
             check("error lists available names", true,
@@ -484,7 +484,7 @@ public class SmokeTest {
         // Unclosed placeholder
         try {
             int x = 1;
-            t("${unclosed");
+            f("${unclosed");
             fail("unclosed placeholder", new AssertionError("expected TemplateException"));
         } catch (TemplateException e) {
             check("unclosed error", true, e.getMessage().contains("unclosed"));
@@ -493,7 +493,7 @@ public class SmokeTest {
         // Empty placeholder name ${}
         try {
             int x = 1;
-            t("${}");
+            f("${}");
             fail("empty placeholder", new AssertionError("expected TemplateException"));
         } catch (TemplateException e) {
             check("empty name error", true, e.getMessage().contains("not a valid"));
@@ -502,7 +502,7 @@ public class SmokeTest {
         // Invalid identifier in placeholder
         try {
             int x = 1;
-            t("${123bad}");
+            f("${123bad}");
             fail("invalid ident", new AssertionError("expected TemplateException"));
         } catch (TemplateException e) {
             check("invalid ident error", true, e.getMessage().contains("not a valid"));
@@ -511,7 +511,7 @@ public class SmokeTest {
         // Null template
         try {
             int x = 1;
-            t(null);
+            f(null);
             fail("null template", new AssertionError("expected TemplateException"));
         } catch (TemplateException e) {
             check("null template error", true, e.getMessage().contains("null"));
@@ -553,17 +553,17 @@ public class SmokeTest {
 
     static String testTemplateFromVariable(int x) {
         String tmpl = "value is ${x}";
-        return t(tmpl);
+        return f(tmpl);
     }
 
     static String testConcatenatedTemplate(String key, String name) {
         String tmpl = "Hello ${" + key + "}!";
-        return t(tmpl);
+        return f(tmpl);
     }
 
     static String testTemplateFromArray(String[] templates, int a, int b) {
-        String r1 = t(templates[0]);
-        String r2 = t(templates[1]);
+        String r1 = f(templates[0]);
+        String r2 = f(templates[1]);
         return r1 + "|" + r2;
     }
 
@@ -572,7 +572,7 @@ public class SmokeTest {
     }
 
     static String testTemplateFromMethod(int n) {
-        return t(getTemplate());
+        return f(getTemplate());
     }
 
     // ========================================================================

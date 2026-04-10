@@ -7,14 +7,14 @@ public final class Template {
     private Template() { }
 
     @RequiresCallerLocalVariableDetails
-    public static String t(String template) {
+    public static String f(String template) {
         throw new AgentNotLoadedException(
             "SimpleJavaTemplates agent is not loaded. Add " +
             "-javaagent:SimpleJavaTemplates.jar to your JVM startup."
         );
     }
 
-    public static String $___t__Ljava_lang_String_2___(
+    public static String $___f__Ljava_lang_String_2___(
             Map<String, Object> localVarValues, String template) {
         if (template == null) {
             throw new TemplateException("Template string must not be null");

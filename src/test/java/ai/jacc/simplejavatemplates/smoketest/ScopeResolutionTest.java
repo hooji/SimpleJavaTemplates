@@ -1,6 +1,6 @@
 package ai.jacc.simplejavatemplates.smoketest;
 
-import static ai.jacc.simplejavatemplates.Template.t;
+import static ai.jacc.simplejavatemplates.Template.f;
 
 import ai.jacc.simplejavatemplates.TemplateException;
 
@@ -60,15 +60,15 @@ public class ScopeResolutionTest {
         String[] out = new String[3];
         {
             int x = 10;
-            out[0] = t("x=${x}");
+            out[0] = f("x=${x}");
         }
         {
             int x = 20;
-            out[1] = t("x=${x}");
+            out[1] = f("x=${x}");
         }
         {
             int x = 30;
-            out[2] = t("x=${x}");
+            out[2] = f("x=${x}");
         }
         return out;
     }
@@ -91,15 +91,15 @@ public class ScopeResolutionTest {
         String[] out = new String[3];
         {
             int x = 42;
-            out[0] = t("x=${x}");
+            out[0] = f("x=${x}");
         }
         {
             String x = "hello";
-            out[1] = t("x=${x}");
+            out[1] = f("x=${x}");
         }
         {
             long x = 9999999999L;
-            out[2] = t("x=${x}");
+            out[2] = f("x=${x}");
         }
         return out;
     }
@@ -120,15 +120,15 @@ public class ScopeResolutionTest {
         String marker = "yes";
         {
             int x = 999;
-            String ignored = t("${x}"); // x visible here
+            String ignored = f("${x}"); // x visible here
         }
         // x should NOT be in scope here
         try {
-            t("${x}");
+            f("${x}");
             return "BUG: x should not be visible";
         } catch (TemplateException e) {
             // Correct: x is out of scope
-            return t("${marker}");
+            return f("${marker}");
         }
     }
 
@@ -153,7 +153,7 @@ public class ScopeResolutionTest {
                     int d = 4;
                     {
                         int e = 5;
-                        return t("a=${a},b=${b},c=${c},d=${d},e=${e}");
+                        return f("a=${a},b=${b},c=${c},d=${d},e=${e}");
                     }
                 }
             }
@@ -178,16 +178,16 @@ public class ScopeResolutionTest {
     static String[] deepNestDown() {
         String[] out = new String[4];
         int a = 1;
-        out[0] = t("a=${a}");
+        out[0] = f("a=${a}");
         {
             int b = 2;
-            out[1] = t("a=${a},b=${b}");
+            out[1] = f("a=${a},b=${b}");
             {
                 int c = 3;
-                out[2] = t("a=${a},b=${b},c=${c}");
+                out[2] = f("a=${a},b=${b},c=${c}");
                 {
                     int d = 4;
-                    out[3] = t("a=${a},b=${b},c=${c},d=${d}");
+                    out[3] = f("a=${a},b=${b},c=${c},d=${d}");
                 }
             }
         }
@@ -218,13 +218,13 @@ public class ScopeResolutionTest {
                 int c = 3;
                 {
                     int d = 4;
-                    out[0] = t("a=${a},b=${b},c=${c},d=${d}");
+                    out[0] = f("a=${a},b=${b},c=${c},d=${d}");
                 }
-                out[1] = t("a=${a},b=${b},c=${c}");
+                out[1] = f("a=${a},b=${b},c=${c}");
             }
-            out[2] = t("a=${a},b=${b}");
+            out[2] = f("a=${a},b=${b}");
         }
-        out[3] = t("a=${a}");
+        out[3] = f("a=${a}");
         return out;
     }
 
@@ -252,19 +252,19 @@ public class ScopeResolutionTest {
         String root = "R";
         {
             String x = "A";
-            out[0] = t("root=${root},x=${x}");
+            out[0] = f("root=${root},x=${x}");
         }
-        out[1] = t("root=${root}");
+        out[1] = f("root=${root}");
         {
             String x = "B";
-            out[2] = t("root=${root},x=${x}");
+            out[2] = f("root=${root},x=${x}");
         }
-        out[3] = t("root=${root}");
+        out[3] = f("root=${root}");
         {
             String x = "C";
-            out[4] = t("root=${root},x=${x}");
+            out[4] = f("root=${root},x=${x}");
         }
-        out[5] = t("root=${root}");
+        out[5] = f("root=${root}");
         return out;
     }
 
@@ -288,17 +288,17 @@ public class ScopeResolutionTest {
     static String[] mixedVisibility() {
         String[] out = new String[5];
         int outer = 100;
-        out[0] = t("outer=${outer}");
+        out[0] = f("outer=${outer}");
         {
             int mid = 200;
-            out[1] = t("outer=${outer},mid=${mid}");
+            out[1] = f("outer=${outer},mid=${mid}");
             {
                 int inner = 300;
-                out[2] = t("outer=${outer},mid=${mid},inner=${inner}");
+                out[2] = f("outer=${outer},mid=${mid},inner=${inner}");
             }
-            out[3] = t("outer=${outer},mid=${mid}");
+            out[3] = f("outer=${outer},mid=${mid}");
         }
-        out[4] = t("outer=${outer}");
+        out[4] = f("outer=${outer}");
         return out;
     }
 
@@ -321,23 +321,23 @@ public class ScopeResolutionTest {
         String[] out = new String[5];
         {
             int v = 1;
-            out[0] = t("v=${v}");
+            out[0] = f("v=${v}");
         }
         {
             int v = 2;
-            out[1] = t("v=${v}");
+            out[1] = f("v=${v}");
         }
         {
             int v = 3;
-            out[2] = t("v=${v}");
+            out[2] = f("v=${v}");
         }
         {
             int v = 4;
-            out[3] = t("v=${v}");
+            out[3] = f("v=${v}");
         }
         {
             int v = 5;
-            out[4] = t("v=${v}");
+            out[4] = f("v=${v}");
         }
         return out;
     }
@@ -362,12 +362,12 @@ public class ScopeResolutionTest {
         int idx = 0;
         for (int i = 0; i < 3; i++) {
             if (i == 0 || i == 2) {
-                out[idx++] = t("i=${i}");
+                out[idx++] = f("i=${i}");
             }
         }
         for (int i = 10; i < 13; i++) {
             if (i == 10 || i == 12) {
-                out[idx++] = t("i=${i}");
+                out[idx++] = f("i=${i}");
             }
         }
         return out;
@@ -392,17 +392,17 @@ public class ScopeResolutionTest {
         try {
             throw new RuntimeException("first");
         } catch (RuntimeException e) {
-            out[0] = t("${e}");
+            out[0] = f("${e}");
         }
         try {
             throw new RuntimeException("second");
         } catch (RuntimeException e) {
-            out[1] = t("${e}");
+            out[1] = f("${e}");
         }
         try {
             throw new RuntimeException("third");
         } catch (RuntimeException e) {
-            out[2] = t("${e}");
+            out[2] = f("${e}");
         }
         return out;
     }
@@ -428,9 +428,9 @@ public class ScopeResolutionTest {
         String prefix = "P";
         int idx = 0;
         for (int i = 0; i < 3; i++) {
-            out[idx++] = t("prefix=${prefix},i=${i}");
+            out[idx++] = f("prefix=${prefix},i=${i}");
         }
-        out[idx] = t("prefix=${prefix}");
+        out[idx] = f("prefix=${prefix}");
         return out;
     }
 
@@ -456,12 +456,12 @@ public class ScopeResolutionTest {
         String[] out = new String[2];
         if (flag) {
             String result = "YES";
-            out[0] = t("result=${result}");
+            out[0] = f("result=${result}");
         } else {
             String result = "NO";
-            out[0] = t("result=${result}");
+            out[0] = f("result=${result}");
         }
-        out[1] = t("flag=${flag}");
+        out[1] = f("flag=${flag}");
         return out;
     }
 
@@ -494,13 +494,13 @@ public class ScopeResolutionTest {
                         int e = 5;
                         {
                             int f = 6;
-                            out[0] = t("a=${a},b=${b},c=${c},d=${d},e=${e},f=${f}");
+                            out[0] = f("a=${a},b=${b},c=${c},d=${d},e=${e},f=${f}");
                         }
                     }
-                    out[1] = t("a=${a},b=${b},c=${c},d=${d}");
+                    out[1] = f("a=${a},b=${b},c=${c},d=${d}");
                 }
             }
-            out[2] = t("a=${a},b=${b}");
+            out[2] = f("a=${a},b=${b}");
         }
         return out;
     }
@@ -529,27 +529,27 @@ public class ScopeResolutionTest {
     static String[] kitchenSink() {
         String[] out = new String[6];
         String base = "B";
-        out[0] = t("base=${base}");
+        out[0] = f("base=${base}");
         {
             String alpha = "A";
             {
                 String tag = "T1";
-                out[1] = t("base=${base},alpha=${alpha},tag=${tag}");
+                out[1] = f("base=${base},alpha=${alpha},tag=${tag}");
             }
             // tag "T1" is gone
-            out[2] = t("base=${base},alpha=${alpha}");
+            out[2] = f("base=${base},alpha=${alpha}");
             {
                 String beta = "BB";
                 {
                     String tag = "T2";
-                    out[3] = t("base=${base},alpha=${alpha},beta=${beta},tag=${tag}");
+                    out[3] = f("base=${base},alpha=${alpha},beta=${beta},tag=${tag}");
                 }
                 // tag "T2" is gone
-                out[4] = t("base=${base},alpha=${alpha},beta=${beta}");
+                out[4] = f("base=${base},alpha=${alpha},beta=${beta}");
             }
         }
         // alpha, beta, tag all gone
-        out[5] = t("base=${base}");
+        out[5] = f("base=${base}");
         return out;
     }
 
