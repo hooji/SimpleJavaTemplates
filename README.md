@@ -1,13 +1,13 @@
 # SimpleJavaTemplates
 
-String interpolation and SQL parameterization for Java, powered by local variable capture.
+String templates and SQL parameterization for Java, powered by local variable capture.
 
 Write `f("Hello ${name}")` and the library reads `name` directly from your local variables — no manual parameter passing. The same mechanism drives a suite of SQL methods where `${userId}` becomes a bound `?` parameter, making SQL injection **structurally impossible**.
 
 ```java
 import static ai.jacc.simplejavatemplates.Template.*;
 
-// String interpolation — reads locals automatically
+// String templates — reads locals automatically
 String name = "Alice";
 int age = 30;
 String msg = f("${name} is ${age} years old");  // "Alice is 30 years old"
