@@ -132,12 +132,12 @@ public final class Template {
     }
 
     @RequiresCallerLocalVariableDetails
-    public static List<Map<String, Object>> queryRows(Connection conn, String template) {
+    public static List<LinkedHashMap<String, Object>> queryRows(Connection conn, String template) {
         throw new AgentNotLoadedException();
     }
 
     @RequiresCallerLocalVariableDetails
-    public static Map<String, Object> queryFirst(Connection conn, String template) {
+    public static LinkedHashMap<String, Object> queryFirst(Connection conn, String template) {
         throw new AgentNotLoadedException();
     }
 
@@ -147,7 +147,12 @@ public final class Template {
     }
 
     @RequiresCallerLocalVariableDetails
-    public static long insert(Connection conn, String template) {
+    public static void insert(Connection conn, String template) {
+        throw new AgentNotLoadedException();
+    }
+
+    @RequiresCallerLocalVariableDetails
+    public static long insertAndReturnLongKey(Connection conn, String template) {
         throw new AgentNotLoadedException();
     }
 
@@ -164,12 +169,12 @@ public final class Template {
     }
 
     @RequiresCallerLocalVariableDetails
-    public static List<Map<String, Object>> queryRows(String template) {
+    public static List<LinkedHashMap<String, Object>> queryRows(String template) {
         throw new AgentNotLoadedException();
     }
 
     @RequiresCallerLocalVariableDetails
-    public static Map<String, Object> queryFirst(String template) {
+    public static LinkedHashMap<String, Object> queryFirst(String template) {
         throw new AgentNotLoadedException();
     }
 
@@ -179,7 +184,12 @@ public final class Template {
     }
 
     @RequiresCallerLocalVariableDetails
-    public static long insert(String template) {
+    public static void insert(String template) {
+        throw new AgentNotLoadedException();
+    }
+
+    @RequiresCallerLocalVariableDetails
+    public static long insertAndReturnLongKey(String template) {
         throw new AgentNotLoadedException();
     }
 
@@ -202,7 +212,7 @@ public final class Template {
         }
     }
 
-    public static List<Map<String, Object>> $___queryRows__Ljava_sql_Connection_2Ljava_lang_String_2___(
+    public static List<LinkedHashMap<String, Object>> $___queryRows__Ljava_sql_Connection_2Ljava_lang_String_2___(
             Map<String, Object> localVarValues, Connection conn, String template) {
         PreparedStatement ps = prepareSql(conn, template, localVarValues, false);
         ResultSet rs = null;
@@ -214,7 +224,7 @@ public final class Template {
             for (int c = 0; c < columnCount; c++) {
                 columnNames[c] = meta.getColumnLabel(c + 1);
             }
-            List<Map<String, Object>> rows = new ArrayList<Map<String, Object>>();
+            List<LinkedHashMap<String, Object>> rows = new ArrayList<LinkedHashMap<String, Object>>();
             while (rs.next()) {
                 LinkedHashMap<String, Object> row = new LinkedHashMap<String, Object>();
                 for (int c = 0; c < columnCount; c++) {
@@ -231,7 +241,7 @@ public final class Template {
         }
     }
 
-    public static Map<String, Object> $___queryFirst__Ljava_sql_Connection_2Ljava_lang_String_2___(
+    public static LinkedHashMap<String, Object> $___queryFirst__Ljava_sql_Connection_2Ljava_lang_String_2___(
             Map<String, Object> localVarValues, Connection conn, String template) {
         PreparedStatement ps = prepareSql(conn, template, localVarValues, false);
         ResultSet rs = null;
@@ -267,7 +277,19 @@ public final class Template {
         }
     }
 
-    public static long $___insert__Ljava_sql_Connection_2Ljava_lang_String_2___(
+    public static void $___insert__Ljava_sql_Connection_2Ljava_lang_String_2___(
+            Map<String, Object> localVarValues, Connection conn, String template) {
+        PreparedStatement ps = prepareSql(conn, template, localVarValues, false);
+        try {
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new TemplateException("SQL error executing insert: " + e.getMessage(), e);
+        } finally {
+            try { ps.close(); } catch (SQLException ignore) { }
+        }
+    }
+
+    public static long $___insertAndReturnLongKey__Ljava_sql_Connection_2Ljava_lang_String_2___(
             Map<String, Object> localVarValues, Connection conn, String template) {
         PreparedStatement ps = prepareSql(conn, template, localVarValues, true);
         ResultSet keys = null;
@@ -276,7 +298,7 @@ public final class Template {
             keys = ps.getGeneratedKeys();
             if (!keys.next()) {
                 throw new TemplateException(
-                    "insert() expected a generated key but none was returned. " +
+                    "insertAndReturnLongKey() expected a generated key but none was returned. " +
                     "Ensure the table has an auto-generated key column.");
             }
             return keys.getLong(1);
@@ -302,13 +324,13 @@ public final class Template {
         return $___query__Ljava_sql_Connection_2Ljava_lang_String_2___(localVarValues, conn, template);
     }
 
-    public static List<Map<String, Object>> $___queryRows__Ljava_lang_String_2___(
+    public static List<LinkedHashMap<String, Object>> $___queryRows__Ljava_lang_String_2___(
             Map<String, Object> localVarValues, String template) {
         Connection conn = findConnection(localVarValues, "queryRows");
         return $___queryRows__Ljava_sql_Connection_2Ljava_lang_String_2___(localVarValues, conn, template);
     }
 
-    public static Map<String, Object> $___queryFirst__Ljava_lang_String_2___(
+    public static LinkedHashMap<String, Object> $___queryFirst__Ljava_lang_String_2___(
             Map<String, Object> localVarValues, String template) {
         Connection conn = findConnection(localVarValues, "queryFirst");
         return $___queryFirst__Ljava_sql_Connection_2Ljava_lang_String_2___(localVarValues, conn, template);
@@ -320,10 +342,16 @@ public final class Template {
         return $___update__Ljava_sql_Connection_2Ljava_lang_String_2___(localVarValues, conn, template);
     }
 
-    public static long $___insert__Ljava_lang_String_2___(
+    public static void $___insert__Ljava_lang_String_2___(
             Map<String, Object> localVarValues, String template) {
         Connection conn = findConnection(localVarValues, "insert");
-        return $___insert__Ljava_sql_Connection_2Ljava_lang_String_2___(localVarValues, conn, template);
+        $___insert__Ljava_sql_Connection_2Ljava_lang_String_2___(localVarValues, conn, template);
+    }
+
+    public static long $___insertAndReturnLongKey__Ljava_lang_String_2___(
+            Map<String, Object> localVarValues, String template) {
+        Connection conn = findConnection(localVarValues, "insertAndReturnLongKey");
+        return $___insertAndReturnLongKey__Ljava_sql_Connection_2Ljava_lang_String_2___(localVarValues, conn, template);
     }
 
     // ========== SQL helper methods ==========

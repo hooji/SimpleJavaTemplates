@@ -9,6 +9,8 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,7 +33,9 @@ public class SqlTest {
         testQueryRowsWithConnection(conn);
         testQueryFirstWithConnection(conn);
         testUpdateWithConnection(conn);
-        testInsertWithConnection(conn);
+        testVoidInsertWithConnection(conn);
+        testInsertAndReturnLongKeyWithConnection(conn);
+        testLinkedHashMapColumnOrdering(conn);
         testNoConnectionVariants(conn);
         testSqlInjectionSafety(conn);
         testNullParameterValues(conn);
@@ -125,7 +129,7 @@ public class SqlTest {
     }
 
     // ========================================================================
-    // queryRows(Connection, String) — returns List<Map<String, Object>>
+    // queryRows(Connection, String) — returns List<LinkedHashMap<String, Object>>
     // ========================================================================
 
     static void testQueryRowsWithConnection(Connection conn) {
@@ -134,7 +138,7 @@ public class SqlTest {
         // Get all active users
         try {
             String status = "active";
-            List<Map<String, Object>> rows = queryRows(conn,
+            List<LinkedHashMap<String, Object>> rows = queryRows(conn,
                 "SELECT name, age FROM users WHERE status = ${status} ORDER BY age");
             check("queryRows count", 2, rows.size());
             check("queryRows first name", "Alice", rows.get(0).get("NAME"));
@@ -145,7 +149,7 @@ public class SqlTest {
         // Column alias
         try {
             String status = "active";
-            List<Map<String, Object>> rows = queryRows(conn,
+            List<LinkedHashMap<String, Object>> rows = queryRows(conn,
                 "SELECT name AS full_name FROM users WHERE status = ${status} ORDER BY name");
             check("queryRows alias key", true, rows.get(0).containsKey("FULL_NAME"));
             check("queryRows alias value", "Alice", rows.get(0).get("FULL_NAME"));
@@ -162,7 +166,7 @@ public class SqlTest {
         // Found
         try {
             String name = "Alice";
-            Map<String, Object> row = queryFirst(conn,
+            LinkedHashMap<String, Object> row = queryFirst(conn,
                 "SELECT email, age FROM users WHERE name = ${name}");
             check("queryFirst found", true, row != null);
             check("queryFirst email", "alice@example.com", row.get("EMAIL"));
@@ -172,7 +176,7 @@ public class SqlTest {
         // Not found — returns null
         try {
             String name = "Nobody";
-            Map<String, Object> row = queryFirst(conn,
+            LinkedHashMap<String, Object> row = queryFirst(conn,
                 "SELECT * FROM users WHERE name = ${name}");
             check("queryFirst not found", null, row);
         } catch (Throwable e) { fail("queryFirst not found", e); }
@@ -193,7 +197,7 @@ public class SqlTest {
             check("update count", 1, count);
 
             // Verify the update
-            Map<String, Object> row = queryFirst(conn,
+            LinkedHashMap<String, Object> row = queryFirst(conn,
                 "SELECT status FROM users WHERE name = ${name}");
             check("update verify", "suspended", row.get("STATUS"));
 
@@ -221,31 +225,88 @@ public class SqlTest {
     }
 
     // ========================================================================
-    // insert(Connection, String) — returns generated key
+    // insert(Connection, String) — void, no generated key
     // ========================================================================
 
-    static void testInsertWithConnection(Connection conn) {
-        section("insert(Connection, String)");
+    static void testVoidInsertWithConnection(Connection conn) {
+        section("insert(Connection, String) — void");
 
         try {
             String name = "Diana";
             String email = "diana@example.com";
             String status = "active";
             int age = 28;
-            long newId = insert(conn,
+            insert(conn,
                 "INSERT INTO users (name, email, status, age) " +
                 "VALUES (${name}, ${email}, ${status}, ${age})");
-            check("insert returns key", true, newId > 0);
 
             // Verify the insert
-            Map<String, Object> row = queryFirst(conn,
+            LinkedHashMap<String, Object> row = queryFirst(conn,
                 "SELECT name, email FROM users WHERE name = ${name}");
-            check("insert verify name", "Diana", row.get("NAME"));
-            check("insert verify email", "diana@example.com", row.get("EMAIL"));
+            check("void insert verify name", "Diana", row.get("NAME"));
+            check("void insert verify email", "diana@example.com", row.get("EMAIL"));
 
             // Clean up
             update(conn, "DELETE FROM users WHERE name = ${name}");
-        } catch (Throwable e) { fail("insert", e); }
+        } catch (Throwable e) { fail("void insert", e); }
+    }
+
+    // ========================================================================
+    // insertAndReturnLongKey(Connection, String) — returns generated key
+    // ========================================================================
+
+    static void testInsertAndReturnLongKeyWithConnection(Connection conn) {
+        section("insertAndReturnLongKey(Connection, String)");
+
+        try {
+            String name = "Diana";
+            String email = "diana@example.com";
+            String status = "active";
+            int age = 28;
+            long newId = insertAndReturnLongKey(conn,
+                "INSERT INTO users (name, email, status, age) " +
+                "VALUES (${name}, ${email}, ${status}, ${age})");
+            check("insertAndReturnLongKey returns key", true, newId > 0);
+
+            // Verify the insert
+            LinkedHashMap<String, Object> row = queryFirst(conn,
+                "SELECT name, email FROM users WHERE name = ${name}");
+            check("insertAndReturnLongKey verify name", "Diana", row.get("NAME"));
+            check("insertAndReturnLongKey verify email", "diana@example.com", row.get("EMAIL"));
+
+            // Clean up
+            update(conn, "DELETE FROM users WHERE name = ${name}");
+        } catch (Throwable e) { fail("insertAndReturnLongKey", e); }
+    }
+
+    // ========================================================================
+    // LinkedHashMap column ordering
+    // ========================================================================
+
+    static void testLinkedHashMapColumnOrdering(Connection conn) {
+        section("LinkedHashMap column ordering");
+
+        // queryFirst preserves column order
+        try {
+            String name = "Alice";
+            LinkedHashMap<String, Object> row = queryFirst(conn,
+                "SELECT name, email, status, age FROM users WHERE name = ${name}");
+            Iterator<String> keys = row.keySet().iterator();
+            check("queryFirst col 1", "NAME", keys.next());
+            check("queryFirst col 2", "EMAIL", keys.next());
+            check("queryFirst col 3", "STATUS", keys.next());
+            check("queryFirst col 4", "AGE", keys.next());
+        } catch (Throwable e) { fail("queryFirst column ordering", e); }
+
+        // queryRows preserves column order
+        try {
+            String status = "active";
+            List<LinkedHashMap<String, Object>> rows = queryRows(conn,
+                "SELECT age, name FROM users WHERE status = ${status} ORDER BY name");
+            Iterator<String> keys = rows.get(0).keySet().iterator();
+            check("queryRows col 1", "AGE", keys.next());
+            check("queryRows col 2", "NAME", keys.next());
+        } catch (Throwable e) { fail("queryRows column ordering", e); }
     }
 
     // ========================================================================
@@ -279,7 +340,7 @@ public class SqlTest {
         // queryRows() without explicit connection
         try {
             String status = "active";
-            List<Map<String, Object>> rows = queryRows(
+            List<LinkedHashMap<String, Object>> rows = queryRows(
                 "SELECT name FROM users WHERE status = ${status} ORDER BY name");
             check("queryRows() implicit conn count", 2, rows.size());
             check("queryRows() implicit conn first", "Alice", rows.get(0).get("NAME"));
@@ -288,7 +349,7 @@ public class SqlTest {
         // queryFirst() without explicit connection
         try {
             String name = "Charlie";
-            Map<String, Object> row = queryFirst(
+            LinkedHashMap<String, Object> row = queryFirst(
                 "SELECT age FROM users WHERE name = ${name}");
             check("queryFirst() implicit conn", 35, row.get("AGE"));
         } catch (Throwable e) { fail("queryFirst() implicit conn", e); }
@@ -306,20 +367,37 @@ public class SqlTest {
             update(conn, "UPDATE users SET status = ${revertStatus} WHERE name = ${name}");
         } catch (Throwable e) { fail("update() implicit conn", e); }
 
-        // insert() without explicit connection
+        // insert() (void) without explicit connection
         try {
             String name = "Eve";
             String email = "eve@example.com";
             String status = "active";
             int age = 22;
-            long newId = insert(
-                "INSERT INTO users (name, email, status, age) " +
+            insert("INSERT INTO users (name, email, status, age) " +
                 "VALUES (${name}, ${email}, ${status}, ${age})");
-            check("insert() implicit conn", true, newId > 0);
+
+            LinkedHashMap<String, Object> row = queryFirst(
+                "SELECT name FROM users WHERE name = ${name}");
+            check("insert() implicit conn", "Eve", row.get("NAME"));
 
             // Clean up
             update(conn, "DELETE FROM users WHERE name = ${name}");
         } catch (Throwable e) { fail("insert() implicit conn", e); }
+
+        // insertAndReturnLongKey() without explicit connection
+        try {
+            String name = "Frank";
+            String email = "frank@example.com";
+            String status = "active";
+            int age = 33;
+            long newId = insertAndReturnLongKey(
+                "INSERT INTO users (name, email, status, age) " +
+                "VALUES (${name}, ${email}, ${status}, ${age})");
+            check("insertAndReturnLongKey() implicit conn", true, newId > 0);
+
+            // Clean up
+            update(conn, "DELETE FROM users WHERE name = ${name}");
+        } catch (Throwable e) { fail("insertAndReturnLongKey() implicit conn", e); }
     }
 
     // ========================================================================
@@ -332,19 +410,19 @@ public class SqlTest {
         // Attempt SQL injection via parameter value
         try {
             String malicious = "'; DROP TABLE users; --";
-            List<Map<String, Object>> rows = queryRows(conn,
+            List<LinkedHashMap<String, Object>> rows = queryRows(conn,
                 "SELECT * FROM users WHERE name = ${malicious}");
             check("injection returns 0 rows", 0, rows.size());
 
             // Verify table still exists
-            List<Map<String, Object>> allRows = queryRows(conn, "SELECT * FROM users");
+            List<LinkedHashMap<String, Object>> allRows = queryRows(conn, "SELECT * FROM users");
             check("table survives injection", true, allRows.size() >= 3);
         } catch (Throwable e) { fail("sql injection safety", e); }
 
         // Parameter with SQL keywords
         try {
             String keyword = "SELECT * FROM users";
-            List<Map<String, Object>> rows = queryRows(conn,
+            List<LinkedHashMap<String, Object>> rows = queryRows(conn,
                 "SELECT * FROM users WHERE name = ${keyword}");
             check("sql keyword as value", 0, rows.size());
         } catch (Throwable e) { fail("sql keyword as value", e); }
@@ -363,12 +441,12 @@ public class SqlTest {
             String email = null;
             String status = "active";
             int age = 40;
-            long id = insert(conn,
+            insert(conn,
                 "INSERT INTO users (name, email, status, age) " +
                 "VALUES (${name}, ${email}, ${status}, ${age})");
 
             // Query it back
-            Map<String, Object> row = queryFirst(conn,
+            LinkedHashMap<String, Object> row = queryFirst(conn,
                 "SELECT email FROM users WHERE name = ${name}");
             check("null param insert/query", null, row.get("EMAIL"));
 
@@ -387,7 +465,7 @@ public class SqlTest {
         // $$ in SQL template becomes literal $ in the query text
         try {
             String name = "Alice";
-            List<Map<String, Object>> rows = queryRows(conn,
+            List<LinkedHashMap<String, Object>> rows = queryRows(conn,
                 "SELECT name, '$$' AS dollar_sign FROM users WHERE name = ${name}");
             check("$$ in SQL", "$", rows.get(0).get("DOLLAR_SIGN"));
         } catch (Throwable e) { fail("$$ in SQL", e); }
@@ -401,7 +479,7 @@ public class SqlTest {
         section("No placeholders in SQL");
 
         try {
-            List<Map<String, Object>> rows = queryRows(conn,
+            List<LinkedHashMap<String, Object>> rows = queryRows(conn,
                 "SELECT COUNT(*) AS cnt FROM users");
             check("no placeholders", true,
                 ((Number) rows.get(0).get("CNT")).intValue() >= 3);
@@ -419,7 +497,7 @@ public class SqlTest {
             String status = "active";
             int minAge = 25;
             int maxAge = 32;
-            List<Map<String, Object>> rows = queryRows(conn,
+            List<LinkedHashMap<String, Object>> rows = queryRows(conn,
                 "SELECT name FROM users WHERE status = ${status} " +
                 "AND age >= ${minAge} AND age <= ${maxAge} ORDER BY name");
             check("multi-placeholder count", 1, rows.size());
@@ -436,7 +514,7 @@ public class SqlTest {
 
         try {
             String val = "Alice";
-            List<Map<String, Object>> rows = queryRows(conn,
+            List<LinkedHashMap<String, Object>> rows = queryRows(conn,
                 "SELECT * FROM users WHERE name = ${val} OR email LIKE ${val}");
             check("repeated var count", 1, rows.size());
             check("repeated var name", "Alice", rows.get(0).get("NAME"));
@@ -453,7 +531,7 @@ public class SqlTest {
         try {
             String name = "Bob";
             String tmpl = "SELECT age FROM users WHERE name = ${name}";
-            Map<String, Object> row = queryFirst(conn, tmpl);
+            LinkedHashMap<String, Object> row = queryFirst(conn, tmpl);
             check("dynamic template", 25, row.get("AGE"));
         } catch (Throwable e) { fail("dynamic template", e); }
     }
@@ -468,7 +546,7 @@ public class SqlTest {
         // queryRows with no matches
         try {
             String status = "deleted";
-            List<Map<String, Object>> rows = queryRows(conn,
+            List<LinkedHashMap<String, Object>> rows = queryRows(conn,
                 "SELECT * FROM users WHERE status = ${status}");
             check("queryRows empty", 0, rows.size());
         } catch (Throwable e) { fail("queryRows empty", e); }
@@ -476,7 +554,7 @@ public class SqlTest {
         // queryFirst with no matches
         try {
             String name = "Nobody";
-            Map<String, Object> row = queryFirst(conn,
+            LinkedHashMap<String, Object> row = queryFirst(conn,
                 "SELECT * FROM users WHERE name = ${name}");
             check("queryFirst empty", null, row);
         } catch (Throwable e) { fail("queryFirst empty", e); }
