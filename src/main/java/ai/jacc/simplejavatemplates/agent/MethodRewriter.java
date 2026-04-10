@@ -292,7 +292,7 @@ final class MethodRewriter {
     static String computeSyntheticName(String stubName, String stubDesc) {
         int closeParen = stubDesc.indexOf(')');
         String paramPart = stubDesc.substring(1, closeParen);
-        String encoded = paramPart.replace('/', '_').replace(";", "_2");
+        String encoded = encodeDescriptorForName(paramPart);
         return "$___" + stubName + "__" + encoded + "___";
     }
 
@@ -302,8 +302,16 @@ final class MethodRewriter {
 
     static String computeFieldName(String methodName, String methodDesc) {
         Type returnType = Type.getReturnType(methodDesc);
-        String encoded = returnType.getDescriptor().replace('/', '_').replace(";", "_2");
+        String encoded = encodeDescriptorForName(returnType.getDescriptor());
         return "$___localVariableDetails___" + encoded + "___" + methodName + "___";
+    }
+
+    /**
+     * Encodes a JVM descriptor so it is legal in a field/method name.
+     * JVMS §4.2.2 forbids . ; [ / in unqualified names.
+     */
+    static String encodeDescriptorForName(String desc) {
+        return desc.replace('/', '_').replace(";", "_2").replace("[", "_3");
     }
 
     // ========== Bytecode emission helpers ==========
