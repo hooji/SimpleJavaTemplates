@@ -2,6 +2,7 @@ package ai.jacc.simplejavatemplates.smoketest;
 
 import static ai.jacc.simplejavatemplates.Template.f;
 
+import ai.jacc.simplejavatemplates.AgentNotLoadedException;
 import ai.jacc.simplejavatemplates.TemplateException;
 
 /**
@@ -459,6 +460,14 @@ public class SmokeTest {
 
     static void testErrorConditions() {
         section("Error conditions");
+
+        // AgentNotLoadedException default message
+        try {
+            AgentNotLoadedException ex = new AgentNotLoadedException();
+            String expected = "SimpleJavaTemplates agent is not loaded. Add " +
+                "-javaagent:SimpleJavaTemplates.jar to your JVM startup.";
+            check("AgentNotLoadedException default message", expected, ex.getMessage());
+        } catch (Throwable e) { fail("AgentNotLoadedException default message", e); }
 
         // Unknown variable name
         try {

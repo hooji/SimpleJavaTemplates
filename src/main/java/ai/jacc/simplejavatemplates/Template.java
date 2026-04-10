@@ -8,10 +8,7 @@ public final class Template {
 
     @RequiresCallerLocalVariableDetails
     public static String f(String template) {
-        throw new AgentNotLoadedException(
-            "SimpleJavaTemplates agent is not loaded. Add " +
-            "-javaagent:SimpleJavaTemplates.jar to your JVM startup."
-        );
+        throw new AgentNotLoadedException();
     }
 
     public static String $___f__Ljava_lang_String_2___(
