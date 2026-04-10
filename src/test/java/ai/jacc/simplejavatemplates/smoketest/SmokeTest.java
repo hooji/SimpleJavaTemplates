@@ -48,6 +48,9 @@ public class SmokeTest {
         // ===== Format specifiers =====
         testFormatSpecifiers();
 
+        // ===== Nested templates =====
+        testNestedTemplates();
+
         // ===== Summary =====
         System.out.println("\n" + passed + " passed, " + failed + " failed");
         if (failed > 0) {
@@ -779,6 +782,161 @@ public class SmokeTest {
 
     static String testBooleanFormat(boolean flag) {
         return f("flag=${flag:b}");
+    }
+
+    // ========================================================================
+    // Nested templates (${{...}})
+    // ========================================================================
+
+    static void testNestedTemplates() {
+        section("Nested templates");
+
+        // Basic nested template: inner template is interpolated with same vars
+        try {
+            String r = testBasicNested("translator");
+            check("basic nested", "Your job is translator", r);
+        } catch (Throwable e) { fail("basic nested", e); }
+
+        // The motivating use case from the spec: prompt assembly
+        try {
+            String r = testPromptAssembly();
+            check("prompt assembly",
+                "Your job is translator Translate this text " +
+                "Please format your output as JSON according to this schema: {...}",
+                r);
+        } catch (Throwable e) { fail("prompt assembly", e); }
+
+        // Nested template with no placeholders inside it (just a passthrough)
+        try {
+            String r = testNestedPassthrough();
+            check("nested passthrough", "Hello world!", r);
+        } catch (Throwable e) { fail("nested passthrough", e); }
+
+        // Nested template alongside plain placeholders in the same outer template
+        try {
+            String r = testNestedMixedWithPlain("Alice", 42);
+            check("nested + plain mixed", "Hello Alice! Your id is 42.", r);
+        } catch (Throwable e) { fail("nested + plain mixed", e); }
+
+        // Non-String value: StringBuilder used as inner template
+        try {
+            String r = testNestedStringBuilder(99);
+            check("nested StringBuilder", "value is 99", r);
+        } catch (Throwable e) { fail("nested StringBuilder", e); }
+
+        // Multiple nested templates in one outer template
+        try {
+            String r = testMultipleNested();
+            check("multiple nested", "START middle END", r);
+        } catch (Throwable e) { fail("multiple nested", e); }
+
+        // Recursive nesting: inner template contains ${{}} referencing another template
+        try {
+            String r = testRecursiveNested(7);
+            check("recursive nested", "deep value is 7", r);
+        } catch (Throwable e) { fail("recursive nested", e); }
+
+        // Nested template with format specifier
+        try {
+            String r = testNestedWithFormat(3.14159);
+            check("nested with format", "***pi=3.14***", r);
+        } catch (Throwable e) { fail("nested with format", e); }
+
+        // Nested template where the inner template uses $$ escaping
+        try {
+            String r = testNestedWithDollarEscape(100);
+            check("nested $$ escape", "Price: $100", r);
+        } catch (Throwable e) { fail("nested $$ escape", e); }
+
+        // Nested template with format spec (width) applied to the result
+        try {
+            String r = testNestedWithWidthFormat();
+            check("nested width format", "[hi        ]", r);
+        } catch (Throwable e) { fail("nested width format", e); }
+
+        // Unclosed ${{ throws TemplateException
+        try {
+            testNestedUnclosed();
+            fail("unclosed ${{", new AssertionError("expected TemplateException"));
+        } catch (TemplateException e) {
+            check("unclosed ${{ error", true, e.getMessage().contains("unclosed"));
+        } catch (Throwable e) { fail("unclosed ${{", e); }
+
+        // Unknown name inside ${{}} throws TemplateException
+        try {
+            testNestedUnknownName();
+            fail("nested unknown name", new AssertionError("expected TemplateException"));
+        } catch (TemplateException e) {
+            check("nested unknown name error", true, e.getMessage().contains("not found"));
+        } catch (Throwable e) { fail("nested unknown name", e); }
+    }
+
+    static String testBasicNested(String job) {
+        String intro = "Your job is ${job}";
+        return f("${{intro}}");
+    }
+
+    static String testPromptAssembly() {
+        String job = "translator";
+        String schema = "{...}";
+        String intro = "Your job is ${job}";
+        String body = "Translate this text";
+        String returnType = "Please format your output as JSON according to this schema: ${schema}";
+        return f("${{intro}} ${body} ${{returnType}}");
+    }
+
+    static String testNestedPassthrough() {
+        String tmpl = "Hello world!";
+        return f("${{tmpl}}");
+    }
+
+    static String testNestedMixedWithPlain(String name, int id) {
+        String greeting = "Hello ${name}!";
+        return f("${{greeting}} Your id is ${id}.");
+    }
+
+    static String testNestedStringBuilder(int x) {
+        StringBuilder tmpl = new StringBuilder("value is ${x}");
+        return f("${{tmpl}}");
+    }
+
+    static String testMultipleNested() {
+        String prefix = "START";
+        String suffix = "END";
+        return f("${{prefix}} middle ${{suffix}}");
+    }
+
+    static String testRecursiveNested(int val) {
+        String inner = "value is ${val}";
+        String outer = "deep ${{inner}}";
+        return f("${{outer}}");
+    }
+
+    static String testNestedWithFormat(double pi) {
+        String tmpl = "pi=${pi:.2f}";
+        return f("***${{tmpl}}***");
+    }
+
+    static String testNestedWithDollarEscape(int price) {
+        String tmpl = "Price: $$${price}";
+        return f("${{tmpl}}");
+    }
+
+    static String testNestedWithWidthFormat() {
+        String val = "hi";
+        String tmpl = "${val}";
+        return f("[${{tmpl:-10s}}]");
+    }
+
+    static String testNestedUnclosed() {
+        int x = 1;
+        String tmpl = "hello";
+        return f("${{tmpl");
+    }
+
+    static String testNestedUnknownName() {
+        int x = 1;
+        return f("${{nonexistent}}");
     }
 
     // ========================================================================
