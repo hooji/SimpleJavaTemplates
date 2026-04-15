@@ -3,6 +3,7 @@ package ai.jacc.simplejavatemplates.smoketest;
 import static ai.jacc.simplejavatemplates.Template.f;
 
 import ai.jacc.simplejavatemplates.AgentNotLoadedException;
+import ai.jacc.simplejavatemplates.Template;
 import ai.jacc.simplejavatemplates.TemplateException;
 
 /**
@@ -17,6 +18,9 @@ public class SmokeTest {
     static int failed = 0;
 
     public static void main(String[] args) {
+
+        // Use legacy mode for backward compatibility with these tests
+        Template.getGlobalTemplateExpanderInstance().setRequireLeadingDollar(true);
 
         // ===== Basic interpolation =====
         testBasicInterpolation();

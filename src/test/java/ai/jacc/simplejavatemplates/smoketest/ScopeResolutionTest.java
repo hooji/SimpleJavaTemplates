@@ -2,6 +2,7 @@ package ai.jacc.simplejavatemplates.smoketest;
 
 import static ai.jacc.simplejavatemplates.Template.f;
 
+import ai.jacc.simplejavatemplates.Template;
 import ai.jacc.simplejavatemplates.TemplateException;
 
 /**
@@ -22,6 +23,8 @@ public class ScopeResolutionTest {
     static int failed = 0;
 
     public static void main(String[] args) {
+        Template.getGlobalTemplateExpanderInstance().setRequireLeadingDollar(true);
+
         testSiblingScopes_sameNameDifferentValues();
         testSiblingScopes_sameNameDifferentTypes();
         testSiblingScopes_nameGoneAfterScope();

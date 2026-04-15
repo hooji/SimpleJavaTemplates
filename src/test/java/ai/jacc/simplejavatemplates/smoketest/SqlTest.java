@@ -2,6 +2,7 @@ package ai.jacc.simplejavatemplates.smoketest;
 
 import static ai.jacc.simplejavatemplates.Template.*;
 
+import ai.jacc.simplejavatemplates.Template;
 import ai.jacc.simplejavatemplates.TemplateException;
 
 import java.sql.Connection;
@@ -9,6 +10,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,6 +27,8 @@ public class SqlTest {
     static int failed = 0;
 
     public static void main(String[] args) throws Exception {
+        Template.getGlobalTemplateExpanderInstance().setRequireLeadingDollar(true);
+
         Connection conn = DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
         setupTables(conn);
 
@@ -47,6 +51,7 @@ public class SqlTest {
         testEmptyResults(conn);
         testErrorConditions(conn);
         testMissingConnectionError();
+        testInClauseExpansion(conn);
 
         conn.close();
 
@@ -648,6 +653,52 @@ public class SqlTest {
             check("missing conn lists available locals", true,
                 e.getMessage().contains("userId"));
         } catch (Throwable e) { fail("missing conn", e); }
+    }
+
+    // ========================================================================
+    // SQL IN-clause expansion (array/List → (?, ?, ...))
+    // ========================================================================
+
+    static void testInClauseExpansion(Connection conn) {
+        section("SQL IN-clause expansion");
+
+        // List parameter expands to (?, ?, ...)
+        try {
+            List<String> statuses = Arrays.asList("active", "inactive");
+            List<LinkedHashMap<String, Object>> rows = queryRows(conn,
+                "SELECT name FROM users WHERE status IN ${statuses} ORDER BY name");
+            check("IN list count", 3, rows.size());
+            check("IN list first", "Alice", rows.get(0).get("NAME"));
+        } catch (Throwable e) { fail("IN list", e); }
+
+        // Array parameter expands to (?, ?, ...)
+        try {
+            String[] names = {"Alice", "Charlie"};
+            List<LinkedHashMap<String, Object>> rows = queryRows(conn,
+                "SELECT name FROM users WHERE name IN ${names} ORDER BY name");
+            check("IN array count", 2, rows.size());
+            check("IN array first", "Alice", rows.get(0).get("NAME"));
+            check("IN array second", "Charlie", rows.get(1).get("NAME"));
+        } catch (Throwable e) { fail("IN array", e); }
+
+        // Single-element list
+        try {
+            List<String> one = Arrays.asList("Bob");
+            List<LinkedHashMap<String, Object>> rows = queryRows(conn,
+                "SELECT name FROM users WHERE name IN ${one}");
+            check("IN single count", 1, rows.size());
+            check("IN single name", "Bob", rows.get(0).get("NAME"));
+        } catch (Throwable e) { fail("IN single", e); }
+
+        // int[] primitive array
+        try {
+            int[] ages = {25, 35};
+            List<LinkedHashMap<String, Object>> rows = queryRows(conn,
+                "SELECT name FROM users WHERE age IN ${ages} ORDER BY name");
+            check("IN int[] count", 2, rows.size());
+            check("IN int[] first", "Bob", rows.get(0).get("NAME"));
+            check("IN int[] second", "Charlie", rows.get(1).get("NAME"));
+        } catch (Throwable e) { fail("IN int[]", e); }
     }
 
     // ========================================================================
