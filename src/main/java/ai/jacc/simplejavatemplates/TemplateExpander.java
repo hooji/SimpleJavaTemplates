@@ -147,15 +147,39 @@ public class TemplateExpander {
 
         if (optional && value == null) {
             int afterClose = closeBrace + 1;
+
+            // Check for trailing newline
+            int newlineLen = 0;
             if (afterClose < template.length()) {
                 char next = template.charAt(afterClose);
                 if (next == '\r' && afterClose + 1 < template.length()
                         && template.charAt(afterClose + 1) == '\n') {
-                    return afterClose + 2;
+                    newlineLen = 2;
                 } else if (next == '\n') {
-                    return afterClose + 1;
+                    newlineLen = 1;
                 }
             }
+
+            if (newlineLen > 0) {
+                // If everything before the placeholder back to the previous
+                // newline (or start of result) is whitespace-only, consume
+                // that whitespace too — removing the entire line.
+                int wsStart = result.length();
+                while (wsStart > 0) {
+                    char ch = result.charAt(wsStart - 1);
+                    if (ch == '\n') break;
+                    if (ch != ' ' && ch != '\t') {
+                        wsStart = -1;
+                        break;
+                    }
+                    wsStart--;
+                }
+                if (wsStart >= 0) {
+                    result.setLength(wsStart);
+                }
+                return afterClose + newlineLen;
+            }
+
             return afterClose;
         }
 
