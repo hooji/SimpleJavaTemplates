@@ -528,7 +528,6 @@ libraries are on your application classpath, you only need to specify the
 ```bash
 java -javaagent:durable-threads-1.4.1.jar \
      -agentlib:jdwp=transport=dt_socket,server=y,suspend=n \
-     --add-modules jdk.jdi,java.management \
      -cp SimpleJavaTemplates.jar:durable-threads-1.4.1.jar:your-app.jar \
      com.example.Main
 ```
