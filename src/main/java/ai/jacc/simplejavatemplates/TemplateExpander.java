@@ -77,27 +77,29 @@ public class TemplateExpander {
                     i += 2;
                 } else if (i + 2 < len && template.charAt(i + 1) == '{'
                            && template.charAt(i + 2) == '{') {
-                    i = expandNestedTemplate(template, i, locals, result);
+                    i = expandNestedTemplate(template, i + 3, i, locals, result);
                 } else if (i + 1 < len && template.charAt(i + 1) == '{') {
                     i = expandPlaceholder(template, i + 2, i, locals, result);
                 } else {
                     result.append(c);
                     i++;
                 }
-            } else if (c == '{' && !dollarReq) {
+            } else if (c == '\\' && !dollarReq) {
                 if (i + 1 < len && template.charAt(i + 1) == '{') {
                     result.append('{');
                     i += 2;
-                } else {
-                    i = expandPlaceholder(template, i + 1, i, locals, result);
-                }
-            } else if (c == '}' && !dollarReq) {
-                if (i + 1 < len && template.charAt(i + 1) == '}') {
-                    result.append('}');
+                } else if (i + 1 < len && template.charAt(i + 1) == '\\') {
+                    result.append('\\');
                     i += 2;
                 } else {
                     result.append(c);
                     i++;
+                }
+            } else if (c == '{' && !dollarReq) {
+                if (i + 1 < len && template.charAt(i + 1) == '{') {
+                    i = expandNestedTemplate(template, i + 2, i, locals, result);
+                } else {
+                    i = expandPlaceholder(template, i + 1, i, locals, result);
                 }
             } else {
                 result.append(c);
@@ -183,15 +185,14 @@ public class TemplateExpander {
         return closeBrace + 1;
     }
 
-    // === Nested template expansion (${{...}}) ===
+    // === Nested template expansion ({{...}} or ${{...}}) ===
 
-    private int expandNestedTemplate(String template, int dollarIdx,
+    private int expandNestedTemplate(String template, int contentStart, int openIdx,
                                      Map<String, Object> locals, StringBuilder result) {
-        int contentStart = dollarIdx + 3;
         int closeDouble = template.indexOf("}}", contentStart);
         if (closeDouble == -1) {
             throw new TemplateException(
-                "Malformed nested placeholder: unclosed '${{' at index " + dollarIdx +
+                "Malformed nested placeholder: unclosed '{{' at index " + openIdx +
                 " in template: " + template);
         }
 
@@ -216,7 +217,7 @@ public class TemplateExpander {
                 result.append(String.format("%" + formatSpec, expanded));
             } catch (java.util.IllegalFormatException e) {
                 throw new TemplateException(
-                    "Format error for '${{" + content + "}}': " + e.getMessage(), e);
+                    "Format error for '{{" + content + "}}': " + e.getMessage(), e);
             }
         } else {
             result.append(expanded);

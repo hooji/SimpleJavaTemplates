@@ -60,7 +60,8 @@ public class TemplateExpanderTest {
         // Default: requireLeadingDollar = false (simple mode)
 
         testSimpleMode();
-        testSimpleModeEscaping();
+        testBackslashEscaping();
+        testNestedExpansionSimpleMode();
         testDollarPrefixStillWorks();
         testOptionalPlaceholders();
         testContainerExpansion();
@@ -119,29 +120,81 @@ public class TemplateExpanderTest {
     }
 
     // ========================================================================
-    // Brace escaping
+    // Backslash escaping
     // ========================================================================
 
-    static void testSimpleModeEscaping() {
-        section("Brace escaping ({{ and }})");
+    static void testBackslashEscaping() {
+        section("Backslash escaping (\\{ for literal brace)");
 
         try {
             int x = 1;
-            String r = f("a {{literal}} brace");
-            check("{{ escape", "a {literal} brace", r);
-        } catch (Throwable e) { fail("{{ escape", e); }
+            String r = f("a \\{literal} brace");
+            check("\\{ escape", "a {literal} brace", r);
+        } catch (Throwable e) { fail("\\{ escape", e); }
 
         try {
             int x = 42;
-            String r = f("val={x}, json={{\"key\": 1}}");
+            String r = f("val={x}, json=\\{\"key\": 1}");
             check("mixed braces", "val=42, json={\"key\": 1}", r);
         } catch (Throwable e) { fail("mixed braces", e); }
+
+        try {
+            int x = 1;
+            String r = f("path=C:\\\\Users");
+            check("\\\\ escape", "path=C:\\Users", r);
+        } catch (Throwable e) { fail("\\\\ escape", e); }
+
+        try {
+            int x = 1;
+            String r = f("\\n is not special");
+            check("\\other passthrough", "\\n is not special", r);
+        } catch (Throwable e) { fail("\\other passthrough", e); }
 
         try {
             int x = 1;
             String r = f("$$100");
             check("$$ still works", "$100", r);
         } catch (Throwable e) { fail("$$ still works", e); }
+    }
+
+    // ========================================================================
+    // Nested expansion in simple mode ({{expr}})
+    // ========================================================================
+
+    static void testNestedExpansionSimpleMode() {
+        section("Nested expansion in simple mode ({{expr}})");
+
+        try {
+            String r = testNestedSimple();
+            check("{{}} simple mode", "Hello Alice!", r);
+        } catch (Throwable e) { fail("{{}} simple mode", e); }
+
+        try {
+            String r = testNestedWithInnerExpansion();
+            check("{{}} with inner expansion", "Alice is 30", r);
+        } catch (Throwable e) { fail("{{}} with inner expansion", e); }
+
+        try {
+            String r = testNestedDollarStillWorks();
+            check("${{}} still works", "Hi Bob!", r);
+        } catch (Throwable e) { fail("${{}} still works", e); }
+    }
+
+    static String testNestedSimple() {
+        String name = "Alice";
+        String tmpl = "Hello {name}!";
+        return f("{{tmpl}}");
+    }
+    static String testNestedWithInnerExpansion() {
+        String name = "Alice";
+        int age = 30;
+        String tmpl = "{name} is {age}";
+        return f("{{tmpl}}");
+    }
+    static String testNestedDollarStillWorks() {
+        String name = "Bob";
+        String tmpl = "Hi {name}!";
+        return f("${{tmpl}}");
     }
 
     // ========================================================================

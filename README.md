@@ -95,14 +95,22 @@ TemplateExpander legacy = new TemplateExpander().setRequireLeadingDollar(true);
 legacy.f("Hello {name}! ${name}");  // "Hello {name}! Alice"
 ```
 
-### Brace Escaping
+### Escaping
 
-Use `{{` and `}}` to produce literal `{` and `}` characters:
+Use `\{` to produce a literal `{` that is not treated as a placeholder. Since the closing `}` is only special inside a placeholder, it never needs escaping:
 
 ```java
 int x = 42;
-f("val={x}, json={{\"key\": 1}}");  // "val=42, json={\"key\": 1}"
+f("val={x}, json=\\{\"key\": 1}");  // "val=42, json={\"key\": 1}"
 ```
+
+Use `\\` for a literal backslash:
+
+```java
+f("path=C:\\\\Users");  // "path=C:\Users"
+```
+
+A backslash before any other character is passed through as-is.
 
 Dollar escaping with `$$` also still works:
 
@@ -128,11 +136,17 @@ f("{s:S}")                   // "HELLO"
 
 ### Nested Templates
 
-`${{name}}` looks up a variable, treats its value as a template, and interpolates it:
+`{{name}}` looks up a variable, treats its value as a template, and interpolates it:
 
 ```java
 String greeting = "Hello {name}!";
 String name = "Alice";
+f("{{greeting}}")  // "Hello Alice!"
+```
+
+The `${{name}}` syntax also works:
+
+```java
 f("${{greeting}}")  // "Hello Alice!"
 ```
 

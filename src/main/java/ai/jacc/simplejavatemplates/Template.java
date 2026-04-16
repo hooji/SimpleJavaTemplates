@@ -310,29 +310,27 @@ public final class Template {
                     sql.append(c);
                     i++;
                 }
-            } else if (c == '{' && !dollarReq) {
+            } else if (c == '\\' && !dollarReq) {
                 if (i + 1 < len && template.charAt(i + 1) == '{') {
                     sql.append('{');
                     i += 2;
-                } else {
-                    int closeBrace = template.indexOf('}', i + 1);
-                    if (closeBrace == -1) {
-                        throw new TemplateException(
-                            "Malformed placeholder: unclosed '{' at index " + i +
-                            " in SQL template: " + template);
-                    }
-                    String expr = template.substring(i + 1, closeBrace);
-                    bindSqlValue(expr, localVarValues, sql, values, template);
-                    i = closeBrace + 1;
-                }
-            } else if (c == '}' && !dollarReq) {
-                if (i + 1 < len && template.charAt(i + 1) == '}') {
-                    sql.append('}');
+                } else if (i + 1 < len && template.charAt(i + 1) == '\\') {
+                    sql.append('\\');
                     i += 2;
                 } else {
                     sql.append(c);
                     i++;
                 }
+            } else if (c == '{' && !dollarReq) {
+                int closeBrace = template.indexOf('}', i + 1);
+                if (closeBrace == -1) {
+                    throw new TemplateException(
+                        "Malformed placeholder: unclosed '{' at index " + i +
+                        " in SQL template: " + template);
+                }
+                String expr = template.substring(i + 1, closeBrace);
+                bindSqlValue(expr, localVarValues, sql, values, template);
+                i = closeBrace + 1;
             } else {
                 sql.append(c);
                 i++;
