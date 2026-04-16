@@ -26,8 +26,8 @@ List<LinkedHashMap<String, Object>> rows = queryRows(conn,
 Download `SimpleJavaTemplates.jar` from the [latest release](https://github.com/hooji/SimpleJavaTemplates/releases), or build from source:
 
 ```bash
-gradle jar
-# Output: build/libs/SimpleJavaTemplates.jar
+mvn clean package
+# Output: target/SimpleJavaTemplates.jar
 ```
 
 ### 2. Run with the Java Agent
@@ -499,16 +499,15 @@ The agent correctly handles Java's scoping rules:
 ## Building from Source
 
 ```bash
-gradle jar                # Build the shaded jar
-gradle compileTestJava    # Compile tests
+mvn clean package         # Build the shaded jar and compile tests
 
 # Run tests (requires the agent)
-java -javaagent:build/libs/SimpleJavaTemplates.jar \
-     -cp build/libs/SimpleJavaTemplates.jar:build/classes/java/test \
+java -javaagent:target/SimpleJavaTemplates.jar \
+     -cp target/SimpleJavaTemplates.jar:target/test-classes \
      ai.jacc.simplejavatemplates.smoketest.SmokeTest
 
-java -javaagent:build/libs/SimpleJavaTemplates.jar \
-     -cp build/libs/SimpleJavaTemplates.jar:build/classes/java/test \
+java -javaagent:target/SimpleJavaTemplates.jar \
+     -cp target/SimpleJavaTemplates.jar:target/test-classes \
      ai.jacc.simplejavatemplates.smoketest.ScopeResolutionTest
 ```
 
