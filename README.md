@@ -513,4 +513,28 @@ java -javaagent:target/SimpleJavaTemplates.jar \
 
 ## License
 
-See [LICENSE](LICENSE) for details.
+SimpleJavaTemplates is released under the [MIT No Attribution](LICENSE)
+license — a minimalist MIT variant that does not even require retention of
+the copyright notice. Use it however you like, in any project, commercial or
+otherwise.
+
+## Using SimpleJavaTemplates with DurableJavaThreads
+
+SimpleJavaTemplates is designed to coexist cleanly with
+[DurableJavaThreads](https://github.com/hooji/DurableJavaThreads). When both
+libraries are on your application classpath, you only need to specify the
+`DurableJavaThreads` agent on the command line:
+
+```bash
+java -javaagent:durable-threads-1.4.1.jar \
+     -agentlib:jdwp=transport=dt_socket,server=y,suspend=n \
+     --add-modules jdk.jdi,java.management \
+     -cp SimpleJavaTemplates.jar:durable-threads-1.4.1.jar:your-app.jar \
+     com.example.Main
+```
+
+DurableJavaThreads detects SimpleJavaTemplates on the classpath by
+fully-qualified class name and auto-chains its agent for you, in the correct
+load order. You do not need a second `-javaagent` flag. Passing one
+explicitly is also fine — it becomes a no-op via
+`SimpleJavaTemplatesAgent.loaded`.
