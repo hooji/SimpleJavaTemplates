@@ -693,9 +693,9 @@ libraries are on your application classpath, you only need to specify the
 `DurableJavaThreads` agent on the command line:
 
 ```bash
-java -javaagent:durable-threads-1.4.1.jar \
+java -javaagent:durable-threads-1.5.0.jar \
      -agentlib:jdwp=transport=dt_socket,server=y,suspend=n \
-     -cp SimpleJavaTemplates-1.1.2.jar:durable-threads-1.4.1.jar:your-app.jar \
+     -cp SimpleJavaTemplates-1.1.2.jar:durable-threads-1.5.0.jar:your-app.jar \
      com.example.Main
 ```
 
