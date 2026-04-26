@@ -23,11 +23,11 @@ List<LinkedHashMap<String, Object>> rows = queryRows(conn,
 
 ### 1. Get the JAR
 
-Download `SimpleJavaTemplates.jar` from the [latest release](https://github.com/hooji/SimpleJavaTemplates/releases), or build from source:
+Download `SimpleJavaTemplates-1.1.0.jar` from the [latest release](https://github.com/hooji/SimpleJavaTemplates/releases), or build from source:
 
 ```bash
 mvn clean package
-# Output: target/SimpleJavaTemplates.jar
+# Output: target/SimpleJavaTemplates-1.1.0.jar
 ```
 
 ### 2. Run with the Java Agent
@@ -35,7 +35,7 @@ mvn clean package
 SimpleJavaTemplates works by transforming bytecode at startup. Add the agent flag when running your application:
 
 ```bash
-java -javaagent:SimpleJavaTemplates.jar -cp SimpleJavaTemplates.jar:your-app.jar com.example.Main
+java -javaagent:SimpleJavaTemplates-1.1.0.jar -cp SimpleJavaTemplates-1.1.0.jar:your-app.jar com.example.Main
 ```
 
 ### 3. Use It
@@ -494,7 +494,7 @@ The agent correctly handles Java's scoping rules:
 
 - **Java 8+** (compiled with source/target 1.8)
 - **Debug info**: Source must be compiled with `-g` or `-g:vars` so the `LocalVariableTable` is present (this is the default for most build tools)
-- **Agent flag**: `-javaagent:SimpleJavaTemplates.jar` must be on the JVM command line
+- **Agent flag**: `-javaagent:SimpleJavaTemplates-1.1.0.jar` must be on the JVM command line
 
 ## Building from Source
 
@@ -502,12 +502,12 @@ The agent correctly handles Java's scoping rules:
 mvn clean package         # Build the shaded jar and compile tests
 
 # Run tests (requires the agent)
-java -javaagent:target/SimpleJavaTemplates.jar \
-     -cp target/SimpleJavaTemplates.jar:target/test-classes \
+java -javaagent:target/SimpleJavaTemplates-1.1.0.jar \
+     -cp target/SimpleJavaTemplates-1.1.0.jar:target/test-classes \
      ai.jacc.simplejavatemplates.smoketest.SmokeTest
 
-java -javaagent:target/SimpleJavaTemplates.jar \
-     -cp target/SimpleJavaTemplates.jar:target/test-classes \
+java -javaagent:target/SimpleJavaTemplates-1.1.0.jar \
+     -cp target/SimpleJavaTemplates-1.1.0.jar:target/test-classes \
      ai.jacc.simplejavatemplates.smoketest.ScopeResolutionTest
 ```
 
@@ -528,7 +528,7 @@ libraries are on your application classpath, you only need to specify the
 ```bash
 java -javaagent:durable-threads-1.4.1.jar \
      -agentlib:jdwp=transport=dt_socket,server=y,suspend=n \
-     -cp SimpleJavaTemplates.jar:durable-threads-1.4.1.jar:your-app.jar \
+     -cp SimpleJavaTemplates-1.1.0.jar:durable-threads-1.4.1.jar:your-app.jar \
      com.example.Main
 ```
 

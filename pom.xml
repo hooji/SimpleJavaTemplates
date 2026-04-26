@@ -6,7 +6,7 @@
 
     <groupId>ai.jacc</groupId>
     <artifactId>SimpleJavaTemplates</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -48,7 +48,7 @@
     </dependencies>
 
     <build>
-        <finalName>SimpleJavaTemplates</finalName>
+        <finalName>${project.artifactId}-${project.version}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
