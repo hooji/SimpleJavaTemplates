@@ -58,7 +58,7 @@ public class TemplateExpander {
 
     // === Core expansion ===
 
-    String expand(Map<String, Object> locals, String template) {
+    public String expand(Map<String, Object> locals, String template) {
         if (template == null) {
             throw new TemplateException("Template string must not be null");
         }
