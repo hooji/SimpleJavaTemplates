@@ -3,6 +3,9 @@ package ai.jacc.simplejavatemplates.agent;
 import org.objectweb.asm.*;
 import org.objectweb.asm.tree.*;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.security.ProtectionDomain;
@@ -41,6 +44,16 @@ public class CallerLocalVariableTransformer implements ClassFileTransformer {
     static final Map<String, String> missingCompanionMessages =
         Collections.synchronizedMap(new HashMap<String, String>());
 
+    /**
+     * Internal names of classes whose annotations have already been registered.
+     * Guards the load-order race where a caller is transformed before the
+     * callee's class has been loaded: without this, the caller's call site
+     * to an annotated method would not be recognized, leaving the original
+     * stub body to throw {@link ai.jacc.simplejavatemplates.AgentNotLoadedException}.
+     */
+    static final Set<String> scannedClasses =
+        Collections.synchronizedSet(new HashSet<String>());
+
     @Override
     public byte[] transform(ClassLoader loader, String className,
                             Class<?> classBeingRedefined,
@@ -58,11 +71,20 @@ public class CallerLocalVariableTransformer implements ClassFileTransformer {
         try {
             // Always register any annotated methods declared in this class
             registerAnnotatedMethods(classfileBuffer);
+            scannedClasses.add(className);
+
+            ClassReader cr = new ClassReader(classfileBuffer);
+
+            // Pre-scan referenced classes so their @RequiresCallerLocalVariableDetails
+            // annotations are registered before we look for call sites here. Without
+            // this, a caller loaded earlier than its callee would not have its call
+            // site rewritten — the JVM would later invoke the original stub body and
+            // throw AgentNotLoadedException.
+            preregisterReferencedClasses(cr, loader);
 
             if (annotatedMethods.isEmpty()) return null;
 
             // Quick scan for annotated calls in this class
-            ClassReader cr = new ClassReader(classfileBuffer);
             Map<String, List<String[]>> methodsWithCalls = quickScan(cr);
 
             if (methodsWithCalls.isEmpty()) return null;
@@ -157,6 +179,70 @@ public class CallerLocalVariableTransformer implements ClassFileTransformer {
             + ownerDot + ":\n\n" + companionSig + "\n\n"
             + "The companion receives a Map of the caller's local variables (keyed by name),"
             + " followed by the original method arguments.";
+    }
+
+    // ========== Phase 1b: pre-register referenced class annotations ==========
+
+    /**
+     * Walks every method invocation in {@code cr} and, for each distinct
+     * owner class not yet scanned, fetches its bytes via the supplied
+     * {@link ClassLoader} and runs {@link #registerAnnotatedMethods} on them.
+     * This guarantees that, by the time the quick scan looks for annotated
+     * call sites, any callee declared in a separate (not-yet-loaded) class
+     * has already had its annotations registered.
+     */
+    private void preregisterReferencedClasses(ClassReader cr, ClassLoader loader) {
+        final Set<String> referencedOwners = new HashSet<String>();
+        cr.accept(new ClassVisitor(Opcodes.ASM9) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc,
+                                             String signature, String[] exceptions) {
+                return new MethodVisitor(Opcodes.ASM9) {
+                    @Override
+                    public void visitMethodInsn(int opcode, String owner, String name,
+                                                String desc, boolean itf) {
+                        if (owner != null && owner.length() > 0
+                                && owner.charAt(0) != '[') {
+                            referencedOwners.add(owner);
+                        }
+                    }
+                };
+            }
+        }, ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+
+        ClassLoader cl = loader != null ? loader : ClassLoader.getSystemClassLoader();
+        if (cl == null) return;
+        for (String owner : referencedOwners) {
+            if (owner.startsWith("java/") || owner.startsWith("javax/")
+                    || owner.startsWith("jdk/") || owner.startsWith("sun/")
+                    || owner.startsWith("com/sun/")
+                    || owner.startsWith("ai/jacc/simplejavatemplates/agent/")) {
+                continue;
+            }
+            if (!scannedClasses.add(owner)) continue;
+            byte[] bytes = readClassBytes(cl, owner);
+            if (bytes != null) {
+                registerAnnotatedMethods(bytes);
+            }
+        }
+    }
+
+    private static byte[] readClassBytes(ClassLoader cl, String internalName) {
+        InputStream is = cl.getResourceAsStream(internalName + ".class");
+        if (is == null) return null;
+        try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = is.read(buf)) != -1) {
+                out.write(buf, 0, n);
+            }
+            return out.toByteArray();
+        } catch (IOException e) {
+            return null;
+        } finally {
+            try { is.close(); } catch (IOException ignored) {}
+        }
     }
 
     // ========== Phase 2: quick scan for annotated calls ==========
