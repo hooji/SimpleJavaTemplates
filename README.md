@@ -23,11 +23,11 @@ List<LinkedHashMap<String, Object>> rows = queryRows(conn,
 
 ### 1. Get the JAR
 
-Download `SimpleJavaTemplates-1.1.1.jar` from the [latest release](https://github.com/hooji/SimpleJavaTemplates/releases), or build from source:
+Download `SimpleJavaTemplates-1.1.2.jar` from the [latest release](https://github.com/hooji/SimpleJavaTemplates/releases), or build from source:
 
 ```bash
 mvn clean package
-# Output: target/SimpleJavaTemplates-1.1.1.jar
+# Output: target/SimpleJavaTemplates-1.1.2.jar
 ```
 
 ### 2. Run with the Java Agent
@@ -35,7 +35,7 @@ mvn clean package
 SimpleJavaTemplates works by transforming bytecode at startup. Add the agent flag when running your application:
 
 ```bash
-java -javaagent:SimpleJavaTemplates-1.1.1.jar -cp SimpleJavaTemplates-1.1.1.jar:your-app.jar com.example.Main
+java -javaagent:SimpleJavaTemplates-1.1.2.jar -cp SimpleJavaTemplates-1.1.2.jar:your-app.jar com.example.Main
 ```
 
 ### 3. Use It
@@ -471,6 +471,173 @@ TemplateExpander custom = new TemplateExpander()
 custom.f("Hello ${name}");
 ```
 
+## Writing Your Own Methods That Capture Caller Locals
+
+The same machinery that powers `f(...)` and the SQL helpers is available
+for any method you want to write. Annotate the method with
+`@RequiresCallerLocalVariableDetails`, declare a companion method whose
+name follows a fixed naming convention, and the agent will rewrite every
+call site so the companion receives a `Map<String, Object>` of the
+caller's in-scope local variables.
+
+### The Recipe
+
+Two methods, both `static`, both in the same class:
+
+1. **The stub.** Same name and signature you want callers to use, marked
+   with `@RequiresCallerLocalVariableDetails`. Its body just throws —
+   it never executes once the agent is loaded, because the agent
+   redirects every call site to the companion.
+
+2. **The companion.** A specially named method that takes
+   `Map<String, Object>` as its first parameter and the original stub's
+   parameters after that. This is the method that actually runs.
+
+Minimal example:
+
+```java
+import ai.jacc.simplejavatemplates.AgentNotLoadedException;
+import ai.jacc.simplejavatemplates.RequiresCallerLocalVariableDetails;
+
+import java.util.Map;
+
+public final class Audit {
+
+    @RequiresCallerLocalVariableDetails
+    public static void log(String message) {
+        throw new AgentNotLoadedException();
+    }
+
+    public static void $___log__Ljava_lang_String_2___(
+            Map<String, Object> localVarValues, String message) {
+        System.out.println(message + " | locals: " + localVarValues);
+    }
+}
+```
+
+A caller writes `Audit.log("checkpoint")`; the companion sees both the
+explicit `message` argument *and* every local variable that was in scope
+at the call site.
+
+### Naming the Companion
+
+The companion's name and signature are derived mechanically from the
+stub's:
+
+| Stub | Companion |
+|------|-----------|
+| Name | `$___` + *stubName* + `__` + *encodedParams* + `___` |
+| Signature | prepend `Map<String, Object>`; everything else (params, return type) is unchanged |
+
+`encodedParams` is the JVM descriptor of the stub's parameter list with
+three substitutions to keep the result legal in a Java method name:
+
+- `/` → `_`
+- `;` → `_2`
+- `[` → `_3`
+
+Worked examples:
+
+| Stub | JVM descriptor of params | Companion |
+|------|--------------------------|-----------|
+| `String f(String t)` | `Ljava/lang/String;` | `$___f__Ljava_lang_String_2___` |
+| `Result LLMCall()` | (empty) | `$___LLMCall_____` |
+| `int update(Connection c, String t)` | `Ljava/sql/Connection;Ljava/lang/String;` | `$___update__Ljava_sql_Connection_2Ljava_lang_String_2___` |
+| `void log(String m, int n)` | `Ljava/lang/String;I` | `$___log__Ljava_lang_String_2I___` |
+
+If you forget the companion (or get the name wrong), the agent throws
+a `TemplateException` from the call site at runtime that includes the
+exact signature it was looking for. You don't have to memorise the
+encoding — just compile, run, and copy the suggested signature out of
+the diagnostic.
+
+### Expanding Templates From Inside Your Companion
+
+The local-variable map you receive is exactly what `TemplateExpander`
+operates on, so you can run any string-template expansion you like
+against it via the global expander:
+
+```java
+import ai.jacc.simplejavatemplates.Template;
+import ai.jacc.simplejavatemplates.TemplateExpander;
+
+TemplateExpander expander = Template.getGlobalTemplateExpanderInstance();
+String filled = expander.expand(localVarValues, "Hello {name}, you are {age}");
+```
+
+Template syntax (`{name}`, `{?name}`, `{user.email}`, format specifiers,
+nested templates, etc.) and configuration flags
+(`requireLeadingDollar`, `optionalPlaceholders`, `expandContainers`,
+`memberAccess`) all behave exactly as documented above for the built-in
+`f(...)` method.
+
+### A Realistic Example: An LLM Client
+
+Suppose you want callers to write prompts as templates and have the
+prompt's placeholders filled from whatever locals are in scope:
+
+```java
+public final class LLM {
+
+    @RequiresCallerLocalVariableDetails
+    public static Result LLMCall() {
+        throw new AgentNotLoadedException();
+    }
+
+    public static Result $___LLMCall_____(Map<String, Object> localVarValues) {
+        String prompt = (String) localVarValues.get("prompt");
+        String filled = Template.getGlobalTemplateExpanderInstance()
+                                .expand(localVarValues, prompt);
+
+        // Read other named locals as overrides for default request settings:
+        Long seed = (Long) localVarValues.get("seed");
+        Boolean thinking = (Boolean) localVarValues.get("thinking");
+
+        return callApi(filled, seed, thinking);
+    }
+}
+```
+
+A caller now reads as if the locals are conventional named parameters:
+
+```java
+final String prompt = "What is {number1} {operation} {number2}?";
+final int number1 = 5;
+final int number2 = 3;
+final long seed = 123;
+final boolean thinking = false;
+String operation = "plus";
+
+System.out.println("Answer: " + LLM.LLMCall().content());
+
+operation = "minus";
+System.out.println("Answer: " + LLM.LLMCall().content());
+```
+
+Both call sites pick up the current value of every local automatically.
+The first invocation sees `operation="plus"`; the second sees
+`operation="minus"`.
+
+### Things to Know
+
+- **Companion runs in the caller's classloader context** — anything that
+  was visible at the call site (instance fields via `this`, static
+  imports, etc.) remains visible.
+- **`this` is in the map for instance-method callers**, under the key
+  `"this"`. Static-method callers contribute nothing for `this`.
+- **Synthetic compiler locals are filtered**: any name containing `$`
+  (e.g. javac's catch-cleanup temporaries) is omitted from the map.
+- **Scope is honoured**: only locals in scope at the specific call
+  site's PC appear in the map. Variables from completed blocks, sibling
+  scopes that don't dominate the call site, and pattern-bound names
+  outside their flow scope are not visible.
+- **Multiple call sites in the same caller method** each get their own
+  map; the agent inlines the build at every site (different sets of
+  in-scope locals → different maps).
+- **Source must be compiled with debug info** (`-g` or `-g:vars`) so the
+  `LocalVariableTable` is present. This is the default for Maven, Gradle
+  and most IDEs.
+
 ## How It Works
 
 SimpleJavaTemplates is a [Java agent](https://docs.oracle.com/javase/8/docs/api/java/lang/instrument/package-summary.html) that transforms bytecode at class-load time using [ASM](https://asm.ow2.io/). When it sees a call to an annotated method like `f()` or `queryRows()`:
@@ -494,7 +661,7 @@ The agent correctly handles Java's scoping rules:
 
 - **Java 8+** (compiled with source/target 1.8)
 - **Debug info**: Source must be compiled with `-g` or `-g:vars` so the `LocalVariableTable` is present (this is the default for most build tools)
-- **Agent flag**: `-javaagent:SimpleJavaTemplates-1.1.1.jar` must be on the JVM command line
+- **Agent flag**: `-javaagent:SimpleJavaTemplates-1.1.2.jar` must be on the JVM command line
 
 ## Building from Source
 
@@ -502,12 +669,12 @@ The agent correctly handles Java's scoping rules:
 mvn clean package         # Build the shaded jar and compile tests
 
 # Run tests (requires the agent)
-java -javaagent:target/SimpleJavaTemplates-1.1.1.jar \
-     -cp target/SimpleJavaTemplates-1.1.1.jar:target/test-classes \
+java -javaagent:target/SimpleJavaTemplates-1.1.2.jar \
+     -cp target/SimpleJavaTemplates-1.1.2.jar:target/test-classes \
      ai.jacc.simplejavatemplates.smoketest.SmokeTest
 
-java -javaagent:target/SimpleJavaTemplates-1.1.1.jar \
-     -cp target/SimpleJavaTemplates-1.1.1.jar:target/test-classes \
+java -javaagent:target/SimpleJavaTemplates-1.1.2.jar \
+     -cp target/SimpleJavaTemplates-1.1.2.jar:target/test-classes \
      ai.jacc.simplejavatemplates.smoketest.ScopeResolutionTest
 ```
 
@@ -528,7 +695,7 @@ libraries are on your application classpath, you only need to specify the
 ```bash
 java -javaagent:durable-threads-1.4.1.jar \
      -agentlib:jdwp=transport=dt_socket,server=y,suspend=n \
-     -cp SimpleJavaTemplates-1.1.1.jar:durable-threads-1.4.1.jar:your-app.jar \
+     -cp SimpleJavaTemplates-1.1.2.jar:durable-threads-1.4.1.jar:your-app.jar \
      com.example.Main
 ```
 
