@@ -32,6 +32,15 @@ public class CallerLocalVariableTransformer implements ClassFileTransformer {
     static final Set<String> annotatedMethods =
         Collections.synchronizedSet(new HashSet<String>());
 
+    /**
+     * Maps an annotated method (key: {@code owner.name.desc}) to a
+     * pre-built diagnostic message describing the companion implementation
+     * the user must add. Populated when an annotated method is registered
+     * but its companion ($___name__params___) is absent from the same class.
+     */
+    static final Map<String, String> missingCompanionMessages =
+        Collections.synchronizedMap(new HashMap<String, String>());
+
     @Override
     public byte[] transform(ClassLoader loader, String className,
                             Class<?> classBeingRedefined,
@@ -70,30 +79,84 @@ public class CallerLocalVariableTransformer implements ClassFileTransformer {
     // ========== Phase 1: annotation registration ==========
 
     static void registerAnnotatedMethods(byte[] classfileBuffer) {
+        final String[] ownerHolder = new String[1];
+        final Set<String> declaredMethods = new HashSet<String>();
+        final List<String[]> annotatedHere = new ArrayList<String[]>();
+
         ClassReader cr = new ClassReader(classfileBuffer);
         cr.accept(new ClassVisitor(Opcodes.ASM9) {
-            String owner;
-
             @Override
             public void visit(int version, int access, String name,
                               String signature, String superName, String[] interfaces) {
-                owner = name;
+                ownerHolder[0] = name;
             }
 
             @Override
-            public MethodVisitor visitMethod(int access, String name, String desc,
+            public MethodVisitor visitMethod(int access, final String name, final String desc,
                                              String signature, String[] exceptions) {
+                declaredMethods.add(name + desc);
                 return new MethodVisitor(Opcodes.ASM9) {
                     @Override
                     public AnnotationVisitor visitAnnotation(String adesc, boolean visible) {
                         if (ANNOTATION_DESC.equals(adesc)) {
-                            annotatedMethods.add(owner + "." + name + "." + desc);
+                            annotatedHere.add(new String[]{name, desc});
                         }
                         return null;
                     }
                 };
             }
         }, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+
+        String owner = ownerHolder[0];
+        if (owner == null) return;
+
+        for (String[] m : annotatedHere) {
+            String name = m[0], desc = m[1];
+            String key = owner + "." + name + "." + desc;
+            annotatedMethods.add(key);
+
+            String companionName = MethodRewriter.computeSyntheticName(name, desc);
+            String companionDesc = MethodRewriter.computeSyntheticDesc(desc);
+            if (declaredMethods.contains(companionName + companionDesc)) {
+                // Companion present — clear any prior "missing" record.
+                missingCompanionMessages.remove(key);
+            } else {
+                missingCompanionMessages.put(key,
+                    buildMissingCompanionMessage(owner, name, desc, companionName));
+            }
+        }
+    }
+
+    private static String buildMissingCompanionMessage(String ownerInternal, String name,
+                                                       String desc, String companionName) {
+        String ownerDot = ownerInternal.replace('/', '.');
+        Type[] params = Type.getArgumentTypes(desc);
+        Type ret = Type.getReturnType(desc);
+
+        StringBuilder origSig = new StringBuilder();
+        origSig.append(ret.getClassName()).append(' ')
+               .append(ownerDot).append('.').append(name).append('(');
+        for (int i = 0; i < params.length; i++) {
+            if (i > 0) origSig.append(", ");
+            origSig.append(params[i].getClassName());
+        }
+        origSig.append(')');
+
+        StringBuilder companionSig = new StringBuilder();
+        companionSig.append("public static ").append(ret.getClassName()).append(' ')
+                    .append(companionName).append("(\n")
+                    .append("        java.util.Map<String, Object> localVariableValues");
+        for (int i = 0; i < params.length; i++) {
+            companionSig.append(",\n        ").append(params[i].getClassName())
+                        .append(" arg").append(i);
+        }
+        companionSig.append(") {\n    // your implementation\n}");
+
+        return "@RequiresCallerLocalVariableDetails method '" + origSig
+            + "' is missing its companion implementation. Add this method to "
+            + ownerDot + ":\n\n" + companionSig + "\n\n"
+            + "The companion receives a Map of the caller's local variables (keyed by name),"
+            + " followed by the original method arguments.";
     }
 
     // ========== Phase 2: quick scan for annotated calls ==========
@@ -226,8 +289,15 @@ public class CallerLocalVariableTransformer implements ClassFileTransformer {
             // --- Step 7: Rewrite each call site (uses original PCs captured in step 4) ---
             String fieldName = MethodRewriter.computeFieldName(mn.name, mn.desc);
             for (CallSiteInfo cs : callSites) {
-                MethodRewriter.rewriteCallSite(mn.instructions, cs.node, cs.originalPc,
-                    metadataLogicals, className, fieldName, tempSlotBase);
+                String calleeKey = cs.node.owner + "." + cs.node.name + "." + cs.node.desc;
+                String missingMsg = missingCompanionMessages.get(calleeKey);
+                if (missingMsg != null) {
+                    MethodRewriter.rewriteCallSiteAsMissingCompanion(
+                        mn.instructions, cs.node, missingMsg);
+                } else {
+                    MethodRewriter.rewriteCallSite(mn.instructions, cs.node, cs.originalPc,
+                        metadataLogicals, className, fieldName, tempSlotBase);
+                }
             }
 
             // --- Step 8: Update method metadata ---

@@ -225,6 +225,37 @@ final class MethodRewriter {
         callNode.desc = syntheticDesc;
     }
 
+    /**
+     * Replaces an annotated call site whose companion ($___name__params___) is
+     * missing with code that pops the existing arguments and throws a
+     * {@link ai.jacc.simplejavatemplates.TemplateException} carrying a
+     * diagnostic that names the exact companion signature the user must add.
+     */
+    static void rewriteCallSiteAsMissingCompanion(InsnList insns,
+                                                  MethodInsnNode callNode,
+                                                  String message) {
+        Type[] stubParams = Type.getArgumentTypes(callNode.desc);
+        InsnList replacement = new InsnList();
+
+        // Pop the already-pushed stub arguments (rightmost-first to match stack order).
+        for (int i = stubParams.length - 1; i >= 0; i--) {
+            replacement.add(new InsnNode(
+                stubParams[i].getSize() == 2 ? Opcodes.POP2 : Opcodes.POP));
+        }
+
+        replacement.add(new TypeInsnNode(Opcodes.NEW,
+            "ai/jacc/simplejavatemplates/TemplateException"));
+        replacement.add(new InsnNode(Opcodes.DUP));
+        replacement.add(new LdcInsnNode(message));
+        replacement.add(new MethodInsnNode(Opcodes.INVOKESPECIAL,
+            "ai/jacc/simplejavatemplates/TemplateException",
+            "<init>", "(Ljava/lang/String;)V", false));
+        replacement.add(new InsnNode(Opcodes.ATHROW));
+
+        insns.insertBefore(callNode, replacement);
+        insns.remove(callNode);
+    }
+
     // ========== Slot initialization for verifier ==========
 
     /**
