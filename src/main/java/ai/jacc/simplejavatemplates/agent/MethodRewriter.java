@@ -44,6 +44,17 @@ final class MethodRewriter {
                 0, 0, 0, codeLength));
         }
 
+        // Two LVT entries with the same (slot, name, descriptor) represent the
+        // same physical variable whose live range javac chose to split — for
+        // example a pattern variable `s` from `if (obj instanceof String s)`
+        // gets one LVT entry covering the matched-fall-through region and
+        // another covering the flow-scoped continuation, with a gap over the
+        // negated branch. Both entries share the same slot and the same
+        // backing store; if we assign each its own renumbered slot, stores
+        // land in one and loads come from the other. Reuse the new slot for
+        // entries that share the key so renumbering stays coherent.
+        Map<String, Integer> sharedNewSlot = new HashMap<String, Integer>();
+
         for (RawBytecodeScanner.RawLVTEntry e : rawLvt) {
             // Skip existing "this" entries (we synthesized our own)
             if (!isStatic && e.slot == 0 && "this".equals(e.name)) {
@@ -54,9 +65,16 @@ final class MethodRewriter {
             if (e.slot < paramSlotCount) {
                 newSlot = e.slot; // Parameter: keep original slot
             } else {
-                newSlot = nextSlot;
-                boolean cat2 = "J".equals(e.descriptor) || "D".equals(e.descriptor);
-                nextSlot += cat2 ? 2 : 1;
+                String key = e.slot + ":" + e.name + ":" + e.descriptor;
+                Integer prior = sharedNewSlot.get(key);
+                if (prior != null) {
+                    newSlot = prior;
+                } else {
+                    newSlot = nextSlot;
+                    boolean cat2 = "J".equals(e.descriptor) || "D".equals(e.descriptor);
+                    nextSlot += cat2 ? 2 : 1;
+                    sharedNewSlot.put(key, newSlot);
+                }
             }
 
             logicals.add(new LogicalVariable(e.name, e.descriptor,
@@ -268,8 +286,12 @@ final class MethodRewriter {
     static void emitSlotInitializers(MethodNode mn, List<LogicalVariable> allLogicals,
                                      int paramSlotCount) {
         InsnList init = new InsnList();
+        Set<Integer> initializedSlots = new HashSet<Integer>();
         for (LogicalVariable lv : allLogicals) {
             if (lv.newSlot < paramSlotCount) continue; // parameters already initialized
+            // Multiple logicals can share a new slot when javac splits the LVT
+            // entry for a single physical variable; only init the slot once.
+            if (!initializedSlots.add(lv.newSlot)) continue;
             char tc = lv.descriptor.charAt(0);
             switch (tc) {
                 case 'Z': case 'B': case 'C': case 'S': case 'I':
@@ -312,7 +334,13 @@ final class MethodRewriter {
         mn.instructions.add(endLabel);
 
         mn.localVariables = new ArrayList<LocalVariableNode>();
+        // Dedupe by (slot, name, descriptor): when javac splits an LVT range
+        // across a flow-control gap, we'd otherwise emit two identical LVT
+        // entries which the JVM rejects with a ClassFormatError.
+        Set<String> emitted = new HashSet<String>();
         for (LogicalVariable lv : allLogicals) {
+            String key = lv.newSlot + ":" + lv.name + ":" + lv.descriptor;
+            if (!emitted.add(key)) continue;
             mn.localVariables.add(new LocalVariableNode(
                 lv.name, lv.descriptor, null, startLabel, endLabel, lv.newSlot));
         }
