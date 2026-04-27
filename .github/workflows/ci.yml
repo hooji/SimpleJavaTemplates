@@ -48,17 +48,19 @@ jobs:
             ls -la target/ >&2
             exit 1
           fi
-          H2="$(find "$HOME/.m2/repository/com/h2database" -name 'h2-*.jar' | head -1)"
-          if [ -z "$H2" ]; then
+          # Copy the H2 jar (a test-scope Maven dependency) to a known
+          # relative path. Using a path under target/ avoids Git-Bash MSYS
+          # argument-conversion quirks on Windows that mangle absolute
+          # paths inside a `;`-separated classpath, which silently dropped
+          # H2 from the classpath and broke SqlTest.
+          mkdir -p target/test-libs
+          H2_SRC="$(find "$HOME/.m2/repository/com/h2database" -name 'h2-*.jar' | head -1)"
+          if [ -z "$H2_SRC" ]; then
             echo "h2 dependency jar not found in ~/.m2/repository" >&2
             exit 1
           fi
-          # On Windows, find returns a Git Bash POSIX path like
-          # /c/Users/runneradmin/...  which java.exe does not understand and
-          # silently drops from the classpath. Convert to a JVM-friendly form.
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            H2="$(cygpath -m "$H2")"
-          fi
+          cp "$H2_SRC" target/test-libs/h2.jar
+          H2="target/test-libs/h2.jar"
           echo "agent jar: $JAR"
           echo "h2 jar:    $H2"
 
