@@ -1,5 +1,12 @@
 # SimpleJavaTemplates
 
+[![CI](https://github.com/hooji/SimpleJavaTemplates/actions/workflows/ci.yml/badge.svg)](https://github.com/hooji/SimpleJavaTemplates/actions/workflows/ci.yml)
+[![Java 8+](https://img.shields.io/badge/Java-8%2B-blue)](https://openjdk.org/)
+[![License: MIT-0](https://img.shields.io/badge/License-MIT--0-green)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/hooji/SimpleJavaTemplates)](https://github.com/hooji/SimpleJavaTemplates/releases/latest)
+[![Pure Java](https://img.shields.io/badge/Pure%20Java-no%20native%20code-brightgreen)]()
+[![Stock JVM](https://img.shields.io/badge/Stock%20JVM-no%20custom%20build-brightgreen)]()
+
 String templates and SQL parameterization for Java, powered by local variable capture.
 
 Write `f("Hello {name}")` and the library reads `name` directly from your local variables — no manual parameter passing. The same mechanism drives a suite of SQL methods where `{userId}` becomes a bound `?` parameter, making SQL injection **structurally impossible**.
