@@ -54,14 +54,10 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
-                <configuration>
-                    <!-- Tests use Java 21 features (pattern matching for
-                         instanceof, switch patterns) so the agent's behavior
-                         on those LVT entries can be exercised. Main code
-                         remains Java 8 source/target. -->
-                    <testSource>21</testSource>
-                    <testTarget>21</testTarget>
-                </configuration>
+                <!-- Test source level is set by the active profile below: 1.8
+                     by default (so tests build and run on every supported JDK)
+                     and release 21 when the build JDK is 21+, which also pulls
+                     PatternMatchingTest back into compilation. -->
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -100,4 +96,51 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Default test compile: Java 1.8, with PatternMatchingTest excluded
+             since it uses Java 21+ language features. Activates whenever the
+             build JDK is older than 21. -->
+        <profile>
+            <id>tests-pre-java21</id>
+            <activation>
+                <jdk>[,21)</jdk>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <testExcludes>
+                                <exclude>**/PatternMatchingTest.java</exclude>
+                            </testExcludes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- On JDK 21+, raise the test compile to release 21 so
+             PatternMatchingTest builds. Main source remains 1.8 (set by the
+             top-level maven.compiler.source/target properties). -->
+        <profile>
+            <id>tests-java21</id>
+            <activation>
+                <jdk>[21,)</jdk>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <testSource>21</testSource>
+                            <testTarget>21</testTarget>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
