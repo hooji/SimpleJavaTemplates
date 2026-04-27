@@ -53,6 +53,12 @@ jobs:
             echo "h2 dependency jar not found in ~/.m2/repository" >&2
             exit 1
           fi
+          # On Windows, find returns a Git Bash POSIX path like
+          # /c/Users/runneradmin/...  which java.exe does not understand and
+          # silently drops from the classpath. Convert to a JVM-friendly form.
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            H2="$(cygpath -m "$H2")"
+          fi
           echo "agent jar: $JAR"
           echo "h2 jar:    $H2"
 
