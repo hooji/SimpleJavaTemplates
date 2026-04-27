@@ -80,6 +80,9 @@ jobs:
           run TemplateExpanderTest
           run CustomAnnotatedMethodTest
           run LoadOrderTest
+          run ParanoidControlFlowTest
+          run ParanoidTypesTest
+          run ParanoidConcurrencyTest
           run SqlTest "$H2"
 
           # PatternMatchingTest uses Java 21+ language features and is only

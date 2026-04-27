@@ -637,6 +637,21 @@ The first invocation sees `operation="plus"`; the second sees
 - **Source must be compiled with debug info** (`-g` or `-g:vars`) so the
   `LocalVariableTable` is present. This is the default for Maven, Gradle
   and most IDEs.
+- **Lambdas and inner classes — closure capture has compiler rules**.
+  The agent's contract is the LVT of the synthetic method that javac
+  produces for the lambda body (or for the inner class's method), so:
+  - **Lambda body**: locals declared inside the lambda are visible.
+    Outer-scope locals are visible only if the lambda body actually
+    *uses* them in code — javac elides captures that are never read,
+    and a name appearing only inside a string template is not a use as
+    far as the compiler is concerned. To force a capture, reference
+    the variable in real code (e.g. `int n = outer;` or pass it through
+    a method).
+  - **Anonymous and local classes**: locals declared inside the inner
+    method are visible. Captured outer-scope locals become private
+    synthetic fields (`val$name`), not locals at the call site, and
+    therefore do not appear in the map. Promote them into a local
+    inside the inner method if you need them in the template.
 
 ## How It Works
 
